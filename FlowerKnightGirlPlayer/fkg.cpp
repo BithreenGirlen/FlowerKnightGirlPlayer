@@ -48,7 +48,13 @@ namespace fkg
 				if (columns.size() > 2)
 				{
 					resourceToken.iType = fkg::token_type::kVoice;
-					resourceToken.strText = columns.at(2);
+					resourceToken.strText.reserve(256);
+					if (!columns.at(1).empty())
+					{
+						resourceToken.strText = columns.at(1);
+						resourceToken.strText += ":\n";
+					}
+					resourceToken.strText += columns.at(2);
 					if (columns.size() > 3)resourceToken.strFileName = columns.at(3);
 					resourceTokens.push_back(resourceToken);
 				}
@@ -87,12 +93,7 @@ namespace fkg
 
 	std::string RelativePathToAbsoluteFilePath(std::string& strPath)
 	{
-		for (;;)
-		{
-			size_t nPos = strPath.find('/');
-			if (nPos == std::string::npos)break;
-			strPath.replace(nPos, 1, "\\");
-		}
+		text_utility::ReplaceAll(strPath, "/", "\\");
 		return g_strResourceFolderPath + strPath;
 	}
 
