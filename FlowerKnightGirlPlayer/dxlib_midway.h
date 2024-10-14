@@ -33,6 +33,8 @@ public:
 	void MoveViewPoint(int iX, int iY);
 
 	void OnStyleChange();
+
+	bool IsPlayReady() const { return m_bReady; };
 private:
 	HWND m_hRenderWnd = nullptr;
 
