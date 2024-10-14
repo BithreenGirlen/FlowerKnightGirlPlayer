@@ -37,6 +37,7 @@ void CDxLibTextWriter::Draw(const wchar_t* pwzText, unsigned long ulTextLength, 
 {
     if (m_iFontHandle != -1)
     {
+        DxLib::SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
         DxLib::DrawNStringToHandle(iPosX + 4, iPosY + 4, pwzText, ulTextLength, m_uiFillColour, m_iFontHandle, m_uiOutLineColour);
     }
 }
