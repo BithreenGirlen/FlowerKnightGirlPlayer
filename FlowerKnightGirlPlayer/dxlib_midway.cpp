@@ -36,36 +36,21 @@ bool CDxLibMidway::SetResources(const std::vector<adv::ImageDatum>& imageData)
 
 	if (m_bStillImageMode)
 	{
-		/*
-		* 元々の画像の解像度が現代の水準からすると低いが、DxLibは基本的に三次元向けのライブラリであり、
-		* 二次元に対する補間法は充実していないので、予めWICで双三次補間してから画素情報を渡す。
-		*/
-		//std::vector<std::wstring> imageFilePaths;
-
-		//for (const auto& imageDatum : imageData)
-		//{
-		//	if (!imageDatum.bSpine)
-		//	{
-		//		imageFilePaths.emplace_back(win_text::WidenANSI(imageDatum.strFilePath));
-		//	}
-		//}
-		//m_bReady = m_DxLibStillImageDrawer.SetImageFromFilePath(imageFilePaths, m_hRenderWnd);
-
-		std::vector<ImageInfo> imageInfoArray;
+		std::vector<SImageFrame> imageFrames;
 		for (const auto& imageDatum : imageData)
 		{
-			ImageInfo s{};
+			SImageFrame s{};
 			if (!imageDatum.bSpine)
 			{
 				const std::wstring& wstrFilePath = win_text::WidenANSI(imageDatum.strFilePath);
-				bool bRet = win_image::LoadImageToMemory(wstrFilePath.c_str(), &s, 2.0f);
+				bool bRet = win_image::LoadImageToMemory(wstrFilePath.c_str(), &s, 1.6875f);
 				if (bRet)
 				{
-					imageInfoArray.push_back(s);
+					imageFrames.push_back(std::move(s));
 				}
 			}
 		}
-		m_bReady = m_DxLibStillImageDrawer.SetImageFromMemory(imageInfoArray, m_hRenderWnd);
+		m_bReady = m_DxLibStillImageDrawer.SetImageFromMemory(imageFrames, m_hRenderWnd);
 
 	}
 	else
@@ -85,11 +70,14 @@ bool CDxLibMidway::SetResources(const std::vector<adv::ImageDatum>& imageData)
 			}
 		}
 		m_bReady = m_DxLibSpinePlayer.SetSpineFromFile(atlasPaths, skelPaths, false);
-		//if (m_bReady)
-		//{
-		//	const std::vector<std::string> leaveOutList{ "WhiteSpot" };
-		//	m_DxLibSpinePlayer.SetSlotsToExclude(leaveOutList);
-		//}
+		if (m_bReady)
+		{
+			//const std::vector<std::string> leaveOutList{ "WhiteSpot" };
+			//m_DxLibSpinePlayer.SetSlotsToExclude(leaveOutList);
+
+			const std::vector<std::string> fixedNames = { "Wait", "Normal", "Fast", "Finish", "After" };
+			m_DxLibSpinePlayer.SetAnimationOrder(fixedNames);
+		}
 	}
 
 	return m_bReady;
@@ -117,11 +105,15 @@ void CDxLibMidway::Redraw(float fDelta)
 
 		if (!m_wstrMessage.empty() && !m_bTextHidden)
 		{
-			DxLib::SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 255);
 			m_DxLibTextWriter.Draw(m_wstrMessage.c_str(), static_cast<unsigned long>(m_wstrMessage.size()));
 		}
 
 		DxLib::ScreenFlip();
+
+		if (m_hRenderWnd != nullptr)
+		{
+			::InvalidateRect(m_hRenderWnd, nullptr, FALSE);
+		}
 	}
 }
 /*文章表示・非表示切り替え*/

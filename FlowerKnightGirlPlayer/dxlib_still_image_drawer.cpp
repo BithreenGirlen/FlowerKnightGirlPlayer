@@ -1,8 +1,6 @@
 ﻿
 
 #include "dxlib_still_image_drawer.h"
-#include "win32_window.h"
-#include "dxlib_win32.h"
 
 #define DX_NON_USING_NAMESPACE_DXLIB
 #include <DxLib.h>
@@ -41,22 +39,24 @@ bool CDxLibStillImageDrawer::SetImageFromFilePath(const std::vector<std::wstring
 	return !m_imageHandles.empty();
 }
 /*メモリ取り込み*/
-bool CDxLibStillImageDrawer::SetImageFromMemory(const std::vector<ImageInfo>& imageInfoArray, HWND hRenderWnd)
+bool CDxLibStillImageDrawer::SetImageFromMemory(const std::vector<SImageFrame>& imageFrames, HWND hRenderWnd)
 {
 	Clear();
 	ResetScale();
 
-	for (const auto& s : imageInfoArray)
+	for (const auto& s : imageFrames)
 	{
 		std::vector<unsigned char> rgbArray;
-
-		rgbArray.reserve(s.pixels.size() * 3 / 4);
+		rgbArray.resize(s.pixels.size() * 3 / 4);
 		/*RGBA => RGB; A情報は破棄*/
-		for (size_t i = 0; i < s.pixels.size(); i += 4)
+		const unsigned char* pSrc = s.pixels.data();
+		unsigned char* pDst = rgbArray.data();
+		for (size_t i = 0; i < s.pixels.size() - 3; i += 4)
 		{
-			rgbArray.push_back(s.pixels.at(i));
-			rgbArray.push_back(s.pixels.at(i + 1));
-			rgbArray.push_back(s.pixels.at(i + 2));
+			*pDst++ = *pSrc++;
+			*pDst++ = *pSrc++;
+			*pDst++ = *pSrc++;
+			pSrc++;
 		}
 		int iPitch = s.iStride * 3 / 4;
 		int iHandle = DxLib::CreateGraph(s.uiWidth, s.uiHeight, iPitch, rgbArray.data());
@@ -70,6 +70,7 @@ bool CDxLibStillImageDrawer::SetImageFromMemory(const std::vector<ImageInfo>& im
 	{
 		m_hRenderWnd = hRenderWnd;
 	}
+
 	WorkOutDefaultSize();
 
 	return !m_imageHandles.empty();
@@ -78,7 +79,7 @@ bool CDxLibStillImageDrawer::SetImageFromMemory(const std::vector<ImageInfo>& im
 /*描画*/
 bool CDxLibStillImageDrawer::Draw()
 {
-	if (m_imageHandles.empty() || m_nImageIndex > m_imageHandles.size() - 1)return false;
+	if (m_nImageIndex >= m_imageHandles.size())return false;
 
 	const int iHandle = m_imageHandles.at(m_nImageIndex);
 
@@ -128,14 +129,12 @@ void CDxLibStillImageDrawer::SetOffset(int iX, int iY)
 	m_iOffsetX += iX;
 	m_iOffsetY += iY;
 	AdjustOffset();
-	Update();
 }
 /*次画像*/
 void CDxLibStillImageDrawer::ShiftImage()
 {
 	++m_nImageIndex;
 	if (m_nImageIndex > m_imageHandles.size() - 1)m_nImageIndex = 0;
-	Update();
 }
 /*表示形式変更通知*/
 void CDxLibStillImageDrawer::OnStyleChanged()
@@ -145,7 +144,7 @@ void CDxLibStillImageDrawer::OnStyleChanged()
 /*消去*/
 void CDxLibStillImageDrawer::Clear()
 {
-	for (const auto imageHandle : m_imageHandles)
+	for (const auto &imageHandle : m_imageHandles)
 	{
 		if (imageHandle > 0)
 		{
@@ -154,14 +153,6 @@ void CDxLibStillImageDrawer::Clear()
 	}
 	m_nImageIndex = 0;
 	m_imageHandles.clear();
-}
-/*画面更新*/
-void CDxLibStillImageDrawer::Update()
-{
-	if (m_hRenderWnd != nullptr)
-	{
-		::InvalidateRect(m_hRenderWnd, NULL, TRUE);
-	}
 }
 /*標準寸法算出*/
 void CDxLibStillImageDrawer::WorkOutDefaultSize()
@@ -208,13 +199,48 @@ void CDxLibStillImageDrawer::ResizeWindow()
 {
 	if (m_imageHandles.empty())return;
 
-	win32_window::ResizeWindow(m_hRenderWnd, m_iBaseWidth, m_iBaseHeight, static_cast<float>(m_dbScale));
-	ResizeBuffer();
+	if (m_hRenderWnd != nullptr)
+	{
+		RECT rect;
+		::GetWindowRect(m_hRenderWnd, &rect);
+		int iX = static_cast<int>(m_iBaseWidth * m_dbScale);
+		int iY = static_cast<int>(m_iBaseHeight * m_dbScale);
+
+		rect.right = iX + rect.left;
+		rect.bottom = iY + rect.top;
+		LONG lStyle = ::GetWindowLong(m_hRenderWnd, GWL_STYLE);
+		const auto HasWindowMenu = [&lStyle]()
+			-> bool
+			{
+				return !((lStyle & WS_CAPTION) && (lStyle & WS_SYSMENU));
+			};
+		::AdjustWindowRect(&rect, lStyle, HasWindowMenu() ? FALSE : TRUE);
+		::SetWindowPos(m_hRenderWnd, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOMOVE | SWP_NOZORDER);
+
+		ResizeBuffer();
+	}
+
 	AdjustOffset();
-	Update();
 }
 
 void CDxLibStillImageDrawer::ResizeBuffer()
 {
-	dxlib_win32::ResizeBuffer(m_hRenderWnd);
+	if (m_hRenderWnd != nullptr)
+	{
+		RECT rc;
+		::GetClientRect(m_hRenderWnd, &rc);
+
+		int iClientWidth = rc.right - rc.left;
+		int iClientHeight = rc.bottom - rc.top;
+
+		int iDesktopWidth = ::GetSystemMetrics(SM_CXSCREEN);
+		int iDesktopHeight = ::GetSystemMetrics(SM_CYSCREEN);
+
+		DxLib::SetGraphMode
+		(
+			iClientWidth < iDesktopWidth ? iClientWidth : iDesktopWidth,
+			iClientHeight < iDesktopHeight ? iClientHeight : iDesktopHeight,
+			32
+		);
+	}
 }

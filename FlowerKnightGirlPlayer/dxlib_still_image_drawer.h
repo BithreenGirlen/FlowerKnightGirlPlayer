@@ -6,15 +6,16 @@
 #include <string>
 #include <vector>
 
-#include "image_info.h"
+#include "image_frame.h"
 
 class CDxLibStillImageDrawer
 {
 public:
 	CDxLibStillImageDrawer();
 	~CDxLibStillImageDrawer();
+
 	bool SetImageFromFilePath(const std::vector<std::wstring> &filePaths, HWND hRenderWnd);
-	bool SetImageFromMemory(const std::vector<ImageInfo> &imageInfoArray, HWND hRenderWnd);
+	bool SetImageFromMemory(const std::vector<SImageFrame> &imageFrames, HWND hRenderWnd);
 
 	bool Draw();
 
@@ -38,10 +39,7 @@ private:
 	int m_iOffsetX = 0;
 	int m_iOffsetY = 0;
 
-	bool m_bBarHidden = false;
-
 	void Clear();
-	void Update();
 	void WorkOutDefaultSize();
 	void AdjustOffset();
 	void ResizeWindow();
