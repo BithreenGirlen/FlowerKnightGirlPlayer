@@ -48,6 +48,14 @@ private:
 	{
 		kFolder, kAduio,
 	};
+	enum EventMessage
+	{
+		kAudioPlayer = WM_USER + 1,
+	};
+	enum Timer
+	{
+		kText = 1,
+	};
 	POINT m_CursorPos{};
 	bool m_bSpeedHavingChanged = false;
 	bool m_bLeftDowned = false;
@@ -90,9 +98,12 @@ private:
 
 	void ShiftText(bool bForward);
 	void UpdateText();
+	void AutoTexting();
 
 	CDxLibClock m_textClock;
 	void CheckTimer();
+
+	void OnAudioPlayerEvent(unsigned long ulEvent);
 };
 
 #endif //MAIN_WINDOW_H_

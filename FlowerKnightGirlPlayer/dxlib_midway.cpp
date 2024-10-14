@@ -110,7 +110,8 @@ void CDxLibMidway::Redraw(float fDelta)
 
 		DxLib::ScreenFlip();
 
-		if (m_hRenderWnd != nullptr)
+		/*静画描画時は負荷軽減の為に事象駆動にする*/
+		if (!m_bStillImageMode && m_hRenderWnd != nullptr)
 		{
 			::InvalidateRect(m_hRenderWnd, nullptr, FALSE);
 		}
@@ -120,11 +121,13 @@ void CDxLibMidway::Redraw(float fDelta)
 void CDxLibMidway::SwitchMessageVisibility()
 {
 	m_bTextHidden ^= true;
+	RequestRedraw();
 }
 /*文字色切り替え*/
 void CDxLibMidway::SwitchTextColour()
 {
 	m_DxLibTextWriter.SwitchTextColour();
+	RequestRedraw();
 }
 /*拡縮変更*/
 void CDxLibMidway::RescaleSize(bool bUpscale)
@@ -132,6 +135,7 @@ void CDxLibMidway::RescaleSize(bool bUpscale)
 	if (m_bStillImageMode)
 	{
 		m_DxLibStillImageDrawer.Rescale(bUpscale);
+		RequestRedraw();
 	}
 	else
 	{
@@ -152,6 +156,7 @@ void CDxLibMidway::ResetScale()
 	if (m_bStillImageMode)
 	{
 		m_DxLibStillImageDrawer.ResetScale();
+		RequestRedraw();
 	}
 	else
 	{
@@ -164,6 +169,7 @@ void CDxLibMidway::ShiftImage()
 	if (m_bStillImageMode)
 	{
 		m_DxLibStillImageDrawer.ShiftImage();
+		RequestRedraw();
 	}
 	else
 	{
@@ -176,6 +182,7 @@ void CDxLibMidway::MoveViewPoint(int iX, int iY)
 	if (m_bStillImageMode)
 	{
 		m_DxLibStillImageDrawer.SetOffset(iX, iY);
+		RequestRedraw();
 	}
 	else
 	{
@@ -188,9 +195,18 @@ void CDxLibMidway::OnStyleChange()
 	if (m_bStillImageMode)
 	{
 		m_DxLibStillImageDrawer.OnStyleChanged();
+		RequestRedraw();
 	}
 	else
 	{
 		m_DxLibSpinePlayer.OnStyleChanged();
+	}
+}
+
+void CDxLibMidway::RequestRedraw()
+{
+	if (m_bStillImageMode && m_hRenderWnd != nullptr)
+	{
+		::InvalidateRect(m_hRenderWnd, nullptr, FALSE);
 	}
 }

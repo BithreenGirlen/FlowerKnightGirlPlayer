@@ -144,6 +144,9 @@ LRESULT CMainWindow::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 		return OnLButtonUp(wParam, lParam);
 	case WM_MBUTTONUP:
 		return OnMButtonUp(wParam, lParam);
+	case EventMessage::kAudioPlayer:
+		OnAudioPlayerEvent(static_cast<unsigned long>(lParam));
+		break;
 	default:
 		break;
 	}
@@ -171,7 +174,7 @@ LRESULT CMainWindow::OnCreate(HWND hWnd)
 	{
 		m_pDxLibMidway->SetFont(L"游明朝 Demibold", 24, true, true);
 	}
-	m_pMfMediaPlayer = new CMfMediaPlayer(nullptr, 0);
+	m_pMfMediaPlayer = new CMfMediaPlayer(m_hWnd, EventMessage::kAudioPlayer);
 
 	return 0;
 }
@@ -185,6 +188,8 @@ LRESULT CMainWindow::OnDestroy()
 /*WM_CLOSE*/
 LRESULT CMainWindow::OnClose()
 {
+	::KillTimer(m_hWnd, Timer::kText);
+
 	if (m_pMfMediaPlayer != nullptr)
 	{
 		delete m_pMfMediaPlayer;
@@ -215,7 +220,8 @@ LRESULT CMainWindow::OnPaint()
 	if (m_pDxLibMidway != nullptr)
 	{
 		m_pDxLibMidway->Redraw(m_fDelta);
-		if (m_pDxLibMidway->IsPlayReady())
+
+		if (m_pDxLibMidway->IsPlayReady() && !m_pDxLibMidway->IsStillMode())
 		{
 			CheckTimer();
 		}
@@ -289,6 +295,20 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 /*WM_TIMER*/
 LRESULT CMainWindow::OnTimer(WPARAM wParam)
 {
+	switch (wParam)
+	{
+	case Timer::kText:
+		if (m_pMfMediaPlayer != nullptr && m_pMfMediaPlayer->IsEnded())
+		{
+			if (m_pDxLibMidway != nullptr && m_pDxLibMidway->IsStillMode())
+			{
+				AutoTexting();
+			}
+		}
+		break;
+	default:
+		break;
+	}
 	return 0;
 }
 /*WM_MOUSEWHEEL*/
@@ -538,6 +558,7 @@ bool CMainWindow::SetupScenario(const wchar_t* pwzFilePath)
 		bRet = m_pDxLibMidway->SetResources(imageData);
 		if (bRet)
 		{
+			ChangeWindowTitle(pwzFilePath);
 			ClearTextData();
 			m_textData = textData;
 			UpdateText();
@@ -621,8 +642,20 @@ void CMainWindow::UpdateText()
 			if (!t.wstrText.empty() && t.wstrText.back() != L'\n') wstr += L'\n';
 			wstr += std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
 			m_pDxLibMidway->SetMessageToDraw(wstr);
+
+			if (m_pDxLibMidway->IsStillMode())
+			{
+				constexpr unsigned int kTimerInterval = 2000;
+				::SetTimer(m_hWnd, Timer::kText, kTimerInterval, nullptr);
+			}
 		}
+		::InvalidateRect(m_hWnd, nullptr, FALSE);
 	}
+}
+/*自動送り*/
+void CMainWindow::AutoTexting()
+{
+	if (m_nTextIndex < m_textData.size() - 1)ShiftText(true);
 }
 
 void CMainWindow::CheckTimer()
@@ -633,7 +666,25 @@ void CMainWindow::CheckTimer()
 	{
 		if (m_pMfMediaPlayer->IsEnded() && fMilliSecond > fAutoPlayInterval)
 		{
-			if (m_nTextIndex < m_textData.size() - 1)ShiftText(true);
+			AutoTexting();
 		}
+	}
+}
+/*IMFMediaEngineNotify::EventNotify*/
+void CMainWindow::OnAudioPlayerEvent(unsigned long ulEvent)
+{
+	switch (ulEvent)
+	{
+	case MF_MEDIA_ENGINE_EVENT_LOADEDMETADATA:
+
+		break;
+	case MF_MEDIA_ENGINE_EVENT_ENDED:
+		if (m_pDxLibMidway != nullptr && m_pDxLibMidway->IsStillMode())
+		{
+			AutoTexting();
+		}
+		break;
+	default:
+		break;
 	}
 }

@@ -34,7 +34,8 @@ public:
 
 	void OnStyleChange();
 
-	bool IsPlayReady() const { return m_bReady; };
+	bool IsPlayReady() const { return m_bReady; }
+	bool IsStillMode() const { return m_bStillImageMode; }
 private:
 	HWND m_hRenderWnd = nullptr;
 
@@ -48,5 +49,7 @@ private:
 	CDxLibTextWriter m_DxLibTextWriter;
 	CDxLibStillImageDrawer m_DxLibStillImageDrawer;
 	CDxLibSpinePlayer m_DxLibSpinePlayer;
+
+	void RequestRedraw();
 };
 #endif // !DXLIB_MIDWAY_H_
