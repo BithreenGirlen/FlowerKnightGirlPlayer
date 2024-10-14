@@ -20,6 +20,8 @@ public:
 	bool SetSpineFromFile(const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelPaths, bool bIsBinary);
 	bool SetSpineFromMemory(const std::vector<std::string>& atlasData, const std::vector<std::string>& atlasPaths, const std::vector<std::string>& skelData, bool bIsBinary);
 
+	void Redraw(float fDelta);
+
 	void OnStyleChanged();
 
 	void RescaleSkeleton(bool bUpscale);
@@ -30,11 +32,12 @@ public:
 	void ShiftAnimation();
 	void ShiftSkin();
 
-	void Redraw(float fDelta);
-
 	void SwitchPma();
 	void SwitchBlendModeAdoption();
 	bool SwitchDepthBufferValidity();
+	void SwitchDrawOrder();
+
+	std::string GetCurrentAnimationNameWithTrackTime(float* fTrackTime = nullptr);
 
 	std::vector<std::string> GetSlotList();
 	std::vector<std::string> GetSkinList() const;
@@ -43,10 +46,11 @@ public:
 	void SetSlotsToExclude(const std::vector<std::string>& slotNames);
 	void MixSkins(const std::vector<std::string>& skinNames);
 	void MixAnimations(const std::vector<std::string>& animationNames);
+	void SetAnimationOrder(const std::vector<std::string>& animationNames);
 private:
 	HWND m_hRenderWnd = nullptr;
 
-	enum Constants { kBaseWidth = 1280, kBaseHeight = 720 };
+	enum Constants { kBaseWidth = 1280, kBaseHeight = 720, kMinAtlas = 1024, };
 
 	CDxLibTextureLoader m_textureLoader;
 	std::vector<std::unique_ptr<spine::Atlas>> m_atlases;
@@ -55,12 +59,13 @@ private:
 
 	DxLib::FLOAT2 m_fBaseSize = DxLib::FLOAT2{ kBaseWidth, kBaseHeight };
 
-	float m_fDefaultWindowScale = 1.f;
+	float m_fDefaultScale = 1.f;
 	DxLib::FLOAT2 m_fDefaultOffset{};
 
 	float m_fTimeScale = 1.f;
 	float m_fSkeletonScale = 1.f;
 	DxLib::FLOAT2 m_fOffset{};
+	DxLib::FLOAT2 m_fViewOffset{};
 
 	std::vector<std::string> m_animationNames;
 	size_t m_nAnimationIndex = 0;
@@ -69,11 +74,14 @@ private:
 	size_t m_nSkinIndex = 0;
 
 	bool m_bDepthBufferEnabled = false;
+	bool m_bDrawOrderReversed = false;
 
 	void ClearDrawables();
 	bool SetupDrawer();
 	void WorkOutDefaultScale();
+	void AdjustViewOffset();
 
+	void UpdatePosition();
 	void UpdateScaletonScale();
 	void UpdateTimeScale();
 
@@ -81,19 +89,5 @@ private:
 
 	void ResizeWindow();
 	void ResizeBuffer();
-
-	void RequestRedraw();
-
-	enum Frequency{kNromal = 16, kHigh = 8};
-	long long m_nInterval = Frequency::kNromal;
-	PTP_TIMER m_pTpTimer = nullptr;
-
-	void StartThreadpoolTimer();
-	void EndThreadpoolTimer();
-	void UpdateTimerInterval(PTP_TIMER timer);
-	void OnTide();
-	static void CALLBACK TimerCallback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer);
-
-	void SwapAnimationOrder();
 };
 #endif // !DXLIB_SPINE_PLAYER_H_

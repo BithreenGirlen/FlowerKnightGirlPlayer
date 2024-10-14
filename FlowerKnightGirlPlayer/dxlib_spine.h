@@ -16,7 +16,7 @@ public:
 	~CDxLibSpineDrawer();
 
 	spine::Skeleton* skeleton = nullptr;
-	spine::AnimationState* state = nullptr;
+	spine::AnimationState* animationState = nullptr;
 	float timeScale = 1.f;
 
 	void Update(float fDelta);
@@ -33,10 +33,9 @@ private:
 	spine::Vector<float> m_worldVertices;
 	spine::Vector<DxLib::VERTEX2D> m_dxLibVertices;
 	spine::Vector<unsigned short> m_dxLibIndices;
+	spine::Vector<unsigned short> m_quadIndices;
 
 	spine::SkeletonClipping m_clipper;
-
-	spine::Vector<unsigned short> m_quadIndices;
 
 	spine::Vector<spine::String> m_leaveOutList;
 

@@ -2,9 +2,6 @@
 
 #include "dxlib_spine.h"
 
-/*Windows OS dependency*/
-#include "win_text.h"
-
 namespace spine
 {
 	SpineExtension* getDefaultExtension()
@@ -26,7 +23,7 @@ CDxLibSpineDrawer::CDxLibSpineDrawer(spine::SkeletonData* pSkeletonData, spine::
 		pAnimationStateData = new(__FILE__, __LINE__) spine::AnimationStateData(pSkeletonData);
 		m_bHasOwnAnimationStateData = true;
 	}
-	state = new(__FILE__, __LINE__) spine::AnimationState(pAnimationStateData);
+	animationState = new(__FILE__, __LINE__) spine::AnimationState(pAnimationStateData);
 
 	m_quadIndices.add(0);
 	m_quadIndices.add(1);
@@ -38,14 +35,14 @@ CDxLibSpineDrawer::CDxLibSpineDrawer(spine::SkeletonData* pSkeletonData, spine::
 
 CDxLibSpineDrawer::~CDxLibSpineDrawer()
 {
-	if (state != nullptr)
+	if (animationState != nullptr)
 	{
 		if (m_bHasOwnAnimationStateData)
 		{
-			delete state->getData();
+			delete animationState->getData();
 		}
 
-		delete state;
+		delete animationState;
 	}
 	if (skeleton != nullptr)
 	{
@@ -55,18 +52,18 @@ CDxLibSpineDrawer::~CDxLibSpineDrawer()
 
 void CDxLibSpineDrawer::Update(float fDelta)
 {
-	if (skeleton != nullptr && state != nullptr)
+	if (skeleton != nullptr && animationState != nullptr)
 	{
 		skeleton->update(fDelta);
-		state->update(fDelta * timeScale);
-		state->apply(*skeleton);
+		animationState->update(fDelta * timeScale);
+		animationState->apply(*skeleton);
 		skeleton->updateWorldTransform();
 	}
 }
 
 void CDxLibSpineDrawer::Draw(float fDepth)
 {
-	if (skeleton == nullptr || state == nullptr)return;
+	if (skeleton == nullptr || animationState == nullptr)return;
 
 	if (skeleton->getColor().a == 0)return; // Invisible case
 
@@ -250,8 +247,36 @@ bool CDxLibSpineDrawer::IsToBeLeftOut(const spine::String& slotName)
 
 void CDxLibTextureLoader::load(spine::AtlasPage& page, const spine::String& path)
 {
-	std::wstring wstrPath = win_text::WidenANSI(path.buffer());
-	int iDxLibTexture = DxLib::LoadGraph(wstrPath.c_str());
+#if	defined(_WIN32) && defined(_UNICODE)
+	const auto WidenPath = [&path]()
+		-> spine::Vector<wchar_t>
+		{
+			/*DxLib sets the default char set if it were not set, thus there is no error here*/
+			int iCharCode = DxLib::GetUseCharCodeFormat();
+			int iWcharCode = DxLib::Get_wchar_t_CharCodeFormat();
+
+			spine::Vector<wchar_t> vBuffer;
+			vBuffer.setSize(path.length() * sizeof(wchar_t), L'\0');
+
+			int iLen = DxLib::ConvertStringCharCodeFormat
+			(
+				iCharCode,
+				path.buffer(),
+				iWcharCode,
+				vBuffer.buffer()
+			);
+			if (iLen != -1)
+			{
+				/*The defualt value is neglected when shrinking.*/
+				vBuffer.setSize(iLen, L'\0');
+			}
+			return vBuffer;
+		};
+	spine::Vector<wchar_t> wcharPath = WidenPath();
+	int iDxLibTexture = DxLib::LoadGraph(wcharPath.buffer());
+#else
+	int iDxLibTexture = DxLib::LoadGraph(path.buffer());
+#endif
 	if (iDxLibTexture == -1)return;
 
 	/*In case atlas size does not coincide with that of png, overwriting will collapse the layout.*/

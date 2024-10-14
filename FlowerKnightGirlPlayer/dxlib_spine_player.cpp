@@ -4,9 +4,6 @@
 #include "dxlib_spine_player.h"
 #include "spine_loader.h"
 
-#include "win32_window.h"
-#include "dxlib_win32.h"
-
 CDxLibSpinePlayer::CDxLibSpinePlayer()
 {
 
@@ -14,7 +11,7 @@ CDxLibSpinePlayer::CDxLibSpinePlayer()
 
 CDxLibSpinePlayer::~CDxLibSpinePlayer()
 {
-	EndThreadpoolTimer();
+
 }
 
 void CDxLibSpinePlayer::SetRenderWindow(HWND hRenderWnd)
@@ -34,7 +31,7 @@ bool CDxLibSpinePlayer::SetSpineFromFile(const std::vector<std::string>& atlasPa
 
 		m_atlases.emplace_back(std::make_unique<spine::Atlas>(strAtlasPath.c_str(), &m_textureLoader));
 
-		std::shared_ptr<spine::SkeletonData> skeletonData = bIsBinary ? spine_loader::readBinarySkeletonFromFile(strSkeletonPath.c_str(), m_atlases.back().get(), 1.f) : spine_loader::readTextSkeletonFromFile(strSkeletonPath.c_str(), m_atlases.back().get(), 1.f);
+		std::shared_ptr<spine::SkeletonData> skeletonData = bIsBinary ? spine_loader::ReadBinarySkeletonFromFile(strSkeletonPath.c_str(), m_atlases.back().get(), 1.f) : spine_loader::ReadTextSkeletonFromFile(strSkeletonPath.c_str(), m_atlases.back().get(), 1.f);
 		if (skeletonData == nullptr)return false;
 
 		m_skeletonData.emplace_back(skeletonData);
@@ -43,7 +40,6 @@ bool CDxLibSpinePlayer::SetSpineFromFile(const std::vector<std::string>& atlasPa
 	if (m_skeletonData.empty())return false;
 
 	WorkOutDefaultScale();
-	ResizeWindow();
 
 	return SetupDrawer();
 }
@@ -61,7 +57,7 @@ bool CDxLibSpinePlayer::SetSpineFromMemory(const std::vector<std::string>& atlas
 
 		m_atlases.emplace_back(std::make_unique<spine::Atlas>(strAtlasDatum.c_str(), static_cast<int>(strAtlasDatum.size()), strAtlasPath.c_str(), &m_textureLoader));
 
-		std::shared_ptr<spine::SkeletonData> skeletonData = bIsBinary ? spine_loader::readBinarySkeletonFromMemory(strSkeletonData, m_atlases.back().get(), 1.f) : spine_loader::readTextSkeletonFromMemory(strSkeletonData, m_atlases.back().get(), 1.f);
+		std::shared_ptr<spine::SkeletonData> skeletonData = bIsBinary ? spine_loader::ReadBinarySkeletonFromMemory(strSkeletonData, m_atlases.back().get(), 1.f) : spine_loader::ReadTextSkeletonFromMemory(strSkeletonData, m_atlases.back().get(), 1.f);
 		if (skeletonData == nullptr)return false;
 
 		m_skeletonData.emplace_back(skeletonData);
@@ -70,9 +66,31 @@ bool CDxLibSpinePlayer::SetSpineFromMemory(const std::vector<std::string>& atlas
 	if (m_skeletonData.empty())return false;
 
 	WorkOutDefaultScale();
-	ResizeWindow();
 
 	return SetupDrawer();
+}
+/*再描画*/
+void CDxLibSpinePlayer::Redraw(float fDelta)
+{
+	if (!m_drawables.empty())
+	{
+		if (!m_bDrawOrderReversed)
+		{
+			for (size_t i = 0; i < m_drawables.size(); ++i)
+			{
+				m_drawables.at(i).get()->Update(fDelta);
+				m_drawables.at(i).get()->Draw(m_bDepthBufferEnabled ? 0.1f * (i + 1) : 0.f);
+			}
+		}
+		else
+		{
+			for (long long i = m_drawables.size() - 1; i >= 0; --i)
+			{
+				m_drawables.at(i).get()->Update(fDelta);
+				m_drawables.at(i).get()->Draw(m_bDepthBufferEnabled ? 0.1f * (i + 1) : 0.f);
+			}
+		}
+	}
 }
 /*表示形式変更通知*/
 void CDxLibSpinePlayer::OnStyleChanged()
@@ -93,7 +111,10 @@ void CDxLibSpinePlayer::RescaleSkeleton(bool bUpscale)
 		m_fSkeletonScale -= kfScalePortion;
 		if (m_fSkeletonScale < kfMinScale)m_fSkeletonScale = kfMinScale;
 	}
+
 	UpdateScaletonScale();
+	ResizeWindow();
+	AdjustViewOffset();
 }
 /*時間尺度変更*/
 void CDxLibSpinePlayer::RescaleTime(bool bHasten)
@@ -115,27 +136,27 @@ void CDxLibSpinePlayer::RescaleTime(bool bHasten)
 void CDxLibSpinePlayer::ResetScale()
 {
 	m_fTimeScale = 1.0f;
-	m_fSkeletonScale = m_fDefaultWindowScale;
+	m_fSkeletonScale = m_fDefaultScale;
 	m_fOffset = m_fDefaultOffset;
+	m_fViewOffset = DxLib::FLOAT2{};
 
 	UpdateScaletonScale();
 	UpdateTimeScale();
-	MoveViewPoint(0, 0);
 	ResizeWindow();
+	AdjustViewOffset();
 }
 /*視点移動*/
 void CDxLibSpinePlayer::MoveViewPoint(int iX, int iY)
 {
 	m_fOffset.u += iX;
 	m_fOffset.v += iY;
-	for (size_t i = 0; i < m_drawables.size(); ++i)
-	{
-		m_drawables.at(i).get()->skeleton->setPosition(m_fBaseSize.u / 2 - m_fOffset.u, m_fBaseSize.v / 2 - m_fOffset.v);
-	}
+	UpdatePosition();
 }
 /*動作移行*/
 void CDxLibSpinePlayer::ShiftAnimation()
 {
+	if (m_animationNames.empty())return;
+
 	++m_nAnimationIndex;
 	if (m_nAnimationIndex > m_animationNames.size() - 1)m_nAnimationIndex = 0;
 
@@ -146,13 +167,15 @@ void CDxLibSpinePlayer::ShiftAnimation()
 		spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(m_nAnimationIndex).c_str());
 		if (animation != nullptr)
 		{
-			m_drawables.at(i).get()->state->setAnimation(0, animation->getName(), true);
+			m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
 		}
 	}
 }
 /*装い移行*/
 void CDxLibSpinePlayer::ShiftSkin()
 {
+	if (m_skinNames.empty())return;
+
 	++m_nSkinIndex;
 	if (m_nSkinIndex > m_skinNames.size() - 1)m_nSkinIndex = 0;
 	for (size_t i = 0; i < m_drawables.size(); ++i)
@@ -163,18 +186,6 @@ void CDxLibSpinePlayer::ShiftSkin()
 			m_drawables.at(i).get()->skeleton->setSkin(skin);
 		}
 		m_drawables.at(i).get()->skeleton->setSlotsToSetupPose();
-	}
-}
-/*再描画*/
-void CDxLibSpinePlayer::Redraw(float fDelta)
-{
-	if (!m_drawables.empty())
-	{
-		for (size_t i = 0; i < m_drawables.size(); ++i)
-		{
-			m_drawables.at(i).get()->Update(fDelta);
-			m_drawables.at(i).get()->Draw(m_bDepthBufferEnabled ? 0.1f * (i + 1) : 0.f);
-		}
 	}
 }
 /*乗算済み透過度有効・無効切り替え*/
@@ -204,6 +215,33 @@ bool CDxLibSpinePlayer::SwitchDepthBufferValidity()
 
 	m_bDepthBufferEnabled ^= true;
 	return true;
+}
+/*描画順切り替え*/
+void CDxLibSpinePlayer::SwitchDrawOrder()
+{
+	m_bDrawOrderReversed ^= true;
+}
+/*現在の動作名と経過時間取得*/
+std::string CDxLibSpinePlayer::GetCurrentAnimationNameWithTrackTime(float* fTrackTime)
+{
+	for (const auto& pDrawable : m_drawables)
+	{
+		auto& tracks = pDrawable->animationState->getTracks();
+		for (size_t i = 0; i < tracks.size(); ++i)
+		{
+			spine::Animation* pAnimation = tracks[i]->getAnimation();
+			if (pAnimation != nullptr)
+			{
+				if (fTrackTime != nullptr)
+				{
+					*fTrackTime = tracks[i]->getTrackTime();
+				}
+				return pAnimation->getName().buffer();
+			}
+		}
+	}
+
+	return std::string();
 }
 /*槽溝名称引き渡し*/
 std::vector<std::string> CDxLibSpinePlayer::GetSlotList()
@@ -248,6 +286,7 @@ void CDxLibSpinePlayer::SetSlotsToExclude(const std::vector<std::string>& slotNa
 /*装い合成*/
 void CDxLibSpinePlayer::MixSkins(const std::vector<std::string>& skinNames)
 {
+	if (m_nSkinIndex >= m_skinNames.size())return;
 	const auto& currentSkinName = m_skinNames.at(m_nSkinIndex);
 
 	for (size_t i = 0; i < m_drawables.size(); ++i)
@@ -276,6 +315,7 @@ void CDxLibSpinePlayer::MixAnimations(const std::vector<std::string>& animationN
 {
 	ClearAnimationTracks();
 
+	if (m_nAnimationIndex >= m_animationNames.size())return;
 	const auto& currentAnimationName = m_animationNames.at(m_nAnimationIndex);
 
 	for (size_t i = 0; i < m_drawables.size(); ++i)
@@ -290,9 +330,39 @@ void CDxLibSpinePlayer::MixAnimations(const std::vector<std::string>& animationN
 				spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(animationName.c_str());
 				if (animation != nullptr)
 				{
-					m_drawables.at(i).get()->state->addAnimation(iTrack, animation, false, 0.f);
+					m_drawables.at(i).get()->animationState->addAnimation(iTrack, animation, false, 0.f);
 					++iTrack;
 				}
+			}
+		}
+	}
+}
+
+void CDxLibSpinePlayer::SetAnimationOrder(const std::vector<std::string>& animationNames)
+{
+	const auto IsFound = [&animationNames](const std::string& str)
+		-> bool
+		{
+			for (const std::string& fixedName : animationNames)
+			{
+				if (strcmp(str.c_str(), fixedName.c_str()) == 0)return true;
+			}
+			return false;
+		};
+
+	if (std::all_of(m_animationNames.begin(), m_animationNames.end(), IsFound))
+	{
+		ClearAnimationTracks();
+
+		m_animationNames = animationNames;
+		m_nAnimationIndex = 0;
+
+		for (size_t i = 0; i < m_skeletonData.size();++i)
+		{
+			spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(m_nAnimationIndex).c_str());
+			if (animation != nullptr)
+			{
+				m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
 			}
 		}
 	}
@@ -300,8 +370,6 @@ void CDxLibSpinePlayer::MixAnimations(const std::vector<std::string>& animationN
 /*消去*/
 void CDxLibSpinePlayer::ClearDrawables()
 {
-	EndThreadpoolTimer();
-
 	m_drawables.clear();
 	m_atlases.clear();
 	m_skeletonData.clear();
@@ -341,8 +409,6 @@ bool CDxLibSpinePlayer::SetupDrawer()
 		}
 	}
 
-	SwapAnimationOrder();
-
 	if (!m_animationNames.empty())
 	{
 		for (size_t i = 0; i < m_skeletonData.size(); ++i)
@@ -350,13 +416,12 @@ bool CDxLibSpinePlayer::SetupDrawer()
 			spine::Animation *animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(0).c_str());
 			if (animation != nullptr)
 			{
-				m_drawables.at(i).get()->state->setAnimation(0, animation->getName(), true);
+				m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
 			}
 		}
 	}
 
 	ResetScale();
-	StartThreadpoolTimer();
 
 	return m_animationNames.size() > 0;
 }
@@ -365,45 +430,70 @@ void CDxLibSpinePlayer::WorkOutDefaultScale()
 {
 	if (m_skeletonData.empty())return;
 
-	if (m_skeletonData.at(0).get()->getWidth() > 0.f && m_skeletonData.at(0).get()->getHeight() > 0.f)
-	{
-		for (size_t i = 0; i < m_skeletonData.size(); ++i)
+	float fMaxSize = 0.f;
+	const auto CompareDimention = [this, &fMaxSize](float fWidth, float fHeight)
+		-> void
 		{
-			float fWidth = m_skeletonData.at(i).get()->getWidth();
-			float fHeight = m_skeletonData.at(i).get()->getHeight();
-
-			m_fBaseSize.u = m_fBaseSize.u > fWidth ? m_fBaseSize.u : fWidth;
-			m_fBaseSize.v = m_fBaseSize.v > fHeight ? m_fBaseSize.v : fHeight;
-		}
-	}
-	else
-	{
-		/*If skeletonData does not store size, deduce from the attachment of the default skin.*/
-		spine::Attachment* pAttachment = m_skeletonData.at(0).get()->getDefaultSkin()->getAttachments().next()._attachment;
-		if (pAttachment != nullptr)
-		{
-			if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
+			if (fWidth * fHeight > fMaxSize)
 			{
-				spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
-				if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
+				m_fBaseSize.u = fWidth;
+				m_fBaseSize.v = fHeight;
+				fMaxSize = fWidth * fHeight;
+			}
+		};
+
+	for (const auto& pSkeletonData : m_skeletonData)
+	{
+		if (pSkeletonData->getWidth() > 0.f && pSkeletonData->getHeight() > 0.f)
+		{
+			CompareDimention(pSkeletonData->getWidth(), pSkeletonData->getHeight());
+		}
+		else
+		{
+			/*If skeletonData does not store size, deduce from the attachment of the default skin.*/
+			const auto FindDefaultSkinAttachment = [&pSkeletonData]()
+				-> spine::Attachment*
 				{
-					m_fBaseSize.u = pRegionAttachment->getWidth() * pRegionAttachment->getScaleX();
-					m_fBaseSize.v = pRegionAttachment->getHeight() * pRegionAttachment->getScaleY();
+					spine::Skin::AttachmentMap::Entries attachmentMapEntries = pSkeletonData.get()->getDefaultSkin()->getAttachments();
+					for (; attachmentMapEntries.hasNext();)
+					{
+						spine::Skin::AttachmentMap::Entry attachmentMapEntry = attachmentMapEntries.next();
+						if (attachmentMapEntry._slotIndex == 0)
+						{
+							return attachmentMapEntry._attachment;
+						}
+					}
+					return nullptr;
+				};
+			spine::Attachment* pAttachment = FindDefaultSkinAttachment();
+			if (pAttachment != nullptr)
+			{
+				if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
+				{
+					spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
+					if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
+					{
+						CompareDimention
+						(
+							pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(),
+							pRegionAttachment->getHeight() * pRegionAttachment->getScaleY()
+						);
+					}
+				}
+				else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
+				{
+					spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
+					if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
+					{
+						float fScale = pMeshAttachment->getWidth() > Constants::kMinAtlas && pMeshAttachment->getHeight() > Constants::kMinAtlas ? 1.f : 2.f;
+						CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
+					}
 				}
 			}
-			else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
-			{
-				spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
-				if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
-				{
-					m_fBaseSize.u = pMeshAttachment->getWidth() * 2.f;
-					m_fBaseSize.v = pMeshAttachment->getHeight() * 2.f;
-				}
-			}
 		}
 	}
 
-	m_fDefaultWindowScale = 1.f;
+	m_fDefaultScale = 1.f;
 	m_fDefaultOffset = DxLib::FLOAT2{};
 
 	int iSkeletonWidth = static_cast<int>(m_fBaseSize.u);
@@ -421,15 +511,49 @@ void CDxLibSpinePlayer::WorkOutDefaultScale()
 
 		if (iDesktopWidth > iDesktopHeight)
 		{
-			m_fDefaultWindowScale = fScaleY;
+			m_fDefaultScale = fScaleY;
 		}
 		else
 		{
-			m_fDefaultWindowScale = fScaleX;
+			m_fDefaultScale = fScaleX;
 		}
 
 		m_fDefaultOffset.u = iSkeletonWidth > iDesktopWidth ? (iSkeletonWidth - iDesktopWidth) * fScaleX : 0.f;
 		m_fDefaultOffset.v = iSkeletonHeight > iDesktopHeight ? (iSkeletonHeight - iDesktopHeight) * fScaleY : 0.f;
+	}
+}
+/*視点補正*/
+void CDxLibSpinePlayer::AdjustViewOffset()
+{
+	if (m_hRenderWnd != nullptr)
+	{
+		RECT rc;
+		::GetClientRect(m_hRenderWnd, &rc);
+
+		int iClientWidth = rc.right - rc.left;
+		int iClientHeight = rc.bottom - rc.top;
+
+		int iDesktopWidth = ::GetSystemMetrics(SM_CXSCREEN);
+		int iDesktopHeight = ::GetSystemMetrics(SM_CYSCREEN);
+		if (iClientWidth < iDesktopWidth && iClientHeight < iDesktopHeight)
+		{
+			/*
+			* (m_fBaseSize.u * m_fDefaultScale) : default window size.
+			* (m_fDefaultScale - m_fSkeletonScale) : deviation from default scale.
+			* Division by 2.f : centre point of rectangle.
+			*/
+			m_fViewOffset.u = (m_fBaseSize.u * m_fDefaultScale) * (m_fDefaultScale - m_fSkeletonScale) / 2.f;
+			m_fViewOffset.v = (m_fBaseSize.v * m_fDefaultScale) * (m_fDefaultScale - m_fSkeletonScale) / 2.f;
+		}
+	}
+	UpdatePosition();
+}
+/*位置適用*/
+void CDxLibSpinePlayer::UpdatePosition()
+{
+	for (size_t i = 0; i < m_drawables.size(); ++i)
+	{
+		m_drawables.at(i).get()->skeleton->setPosition(m_fBaseSize.u / 2 - m_fOffset.u - m_fViewOffset.u, m_fBaseSize.v / 2 - m_fOffset.v - m_fViewOffset.v);
 	}
 }
 /*尺度適用*/
@@ -440,8 +564,6 @@ void CDxLibSpinePlayer::UpdateScaletonScale()
 		m_drawables.at(i).get()->skeleton->setScaleX(m_fSkeletonScale);
 		m_drawables.at(i).get()->skeleton->setScaleY(m_fSkeletonScale);
 	}
-
-	ResizeWindow();
 }
 /*速度適用*/
 void CDxLibSpinePlayer::UpdateTimeScale()
@@ -456,102 +578,56 @@ void CDxLibSpinePlayer::ClearAnimationTracks()
 {
 	for (size_t i = 0; i < m_drawables.size(); ++i)
 	{
-		const auto& trackEntry = m_drawables.at(i).get()->state->getTracks();
+		const auto& trackEntry = m_drawables.at(i).get()->animationState->getTracks();
 		for (size_t iTrack = 1; iTrack < trackEntry.size(); ++iTrack)
 		{
-			m_drawables.at(i).get()->state->setEmptyAnimation(iTrack, 0.f);
+			m_drawables.at(i).get()->animationState->setEmptyAnimation(iTrack, 0.f);
 		}
 	}
 }
 /*窓寸法調整*/
 void CDxLibSpinePlayer::ResizeWindow()
 {
-	win32_window::ResizeWindow(m_hRenderWnd, static_cast<int>(m_fBaseSize.u), static_cast<int>(m_fBaseSize.v), m_fSkeletonScale);
-	ResizeBuffer();
+	if (m_hRenderWnd != nullptr)
+	{
+		RECT rect;
+		::GetWindowRect(m_hRenderWnd, &rect);
+		int iX = static_cast<int>(m_fBaseSize.u * m_fSkeletonScale);
+		int iY = static_cast<int>(m_fBaseSize.v * m_fSkeletonScale);
+
+		rect.right = iX + rect.left;
+		rect.bottom = iY + rect.top;
+		LONG lStyle = ::GetWindowLong(m_hRenderWnd, GWL_STYLE);
+		const auto HasWindowMenu = [&lStyle]()
+			-> bool
+			{
+				return !((lStyle & WS_CAPTION) && (lStyle & WS_SYSMENU));
+			};
+		::AdjustWindowRect(&rect, lStyle, HasWindowMenu() ? FALSE : TRUE);
+		::SetWindowPos(m_hRenderWnd, HWND_TOP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOMOVE | SWP_NOZORDER);
+
+		ResizeBuffer();
+	}
 }
 /*緩衝容量再設定*/
 void CDxLibSpinePlayer::ResizeBuffer()
 {
-	dxlib_win32::ResizeBuffer(m_hRenderWnd);
-}
-/*再描画要求*/
-void CDxLibSpinePlayer::RequestRedraw()
-{
 	if (m_hRenderWnd != nullptr)
 	{
-		::InvalidateRect(m_hRenderWnd, nullptr, TRUE);
-	}
-}
-/*タイマ開始*/
-void CDxLibSpinePlayer::StartThreadpoolTimer()
-{
-	if (m_pTpTimer != nullptr)return;
+		RECT rc;
+		::GetClientRect(m_hRenderWnd, &rc);
 
-	DEVMODE sDevMode{};
-	::EnumDisplaySettings(nullptr, ENUM_CURRENT_SETTINGS, &sDevMode);
-	m_nInterval = static_cast<long long>(1000 / static_cast<float>(sDevMode.dmDisplayFrequency));
+		int iClientWidth = rc.right - rc.left;
+		int iClientHeight = rc.bottom - rc.top;
 
-	m_pTpTimer = ::CreateThreadpoolTimer(TimerCallback, this, nullptr);
-	if (m_pTpTimer != nullptr)
-	{
-		UpdateTimerInterval(m_pTpTimer);
-	}
-}
-/*タイマ停止*/
-void CDxLibSpinePlayer::EndThreadpoolTimer()
-{
-	if (m_pTpTimer != nullptr)
-	{
-		::SetThreadpoolTimer(m_pTpTimer, nullptr, 0, 0);
-		::WaitForThreadpoolTimerCallbacks(m_pTpTimer, TRUE);
-		::CloseThreadpoolTimer(m_pTpTimer);
-		m_pTpTimer = nullptr;
-	}
-}
-/*呼び出し間隔更新*/
-void CDxLibSpinePlayer::UpdateTimerInterval(PTP_TIMER timer)
-{
-	if (timer != nullptr)
-	{
-		FILETIME sFileDueTime{};
-		ULARGE_INTEGER ulDueTime{};
-		ulDueTime.QuadPart = static_cast<ULONGLONG>(-(1LL * 10 * 1000 * m_nInterval));
-		sFileDueTime.dwHighDateTime = ulDueTime.HighPart;
-		sFileDueTime.dwLowDateTime = ulDueTime.LowPart;
-		::SetThreadpoolTimer(timer, &sFileDueTime, 0, 0);
-	}
-}
-/*満了*/
-void CDxLibSpinePlayer::OnTide()
-{
-	RequestRedraw();
-}
-/*PTP_TIMER_CALLBACK*/
-void CDxLibSpinePlayer::TimerCallback(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
-{
-	CDxLibSpinePlayer* pThis = static_cast<CDxLibSpinePlayer*>(Context);
-	if (pThis != nullptr)
-	{
-		pThis->OnTide();
-		pThis->UpdateTimerInterval(Timer);
-	}
-}
+		int iDesktopWidth = ::GetSystemMetrics(SM_CXSCREEN);
+		int iDesktopHeight = ::GetSystemMetrics(SM_CYSCREEN);
 
-void CDxLibSpinePlayer::SwapAnimationOrder()
-{
-	const std::vector<std::string> fixedNames = { "Wait", "Normal", "Fast", "Finish", "After" };
-	const auto IsR18 = [&fixedNames](const std::string& str)
-		-> bool
-		{
-			for (const std::string& fixedName : fixedNames)
-			{
-				if (strstr(str.c_str(), fixedName.c_str()) != nullptr)return true;
-			}
-			return false;
-		};
-
-	if (std::all_of(m_animationNames.begin(), m_animationNames.end(), IsR18))
-	{
-		m_animationNames = fixedNames;
+		DxLib::SetGraphMode
+		(
+			iClientWidth < iDesktopWidth ? iClientWidth : iDesktopWidth,
+			iClientHeight < iDesktopHeight ? iClientHeight : iDesktopHeight,
+			32
+		);
 	}
 }
