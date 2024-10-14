@@ -6,7 +6,9 @@
 #include <string>
 #include <vector>
 
+#include "dxlib_init.h"
 #include "dxlib_midway.h"
+#include "dxlib_clock.h"
 #include "mf_media_player.h"
 
 class CMainWindow
@@ -46,14 +48,6 @@ private:
 	{
 		kFolder, kAduio,
 	};
-	enum EventMessage
-	{
-		kAudioPlayer = WM_USER + 1
-	};
-	enum Timer
-	{
-		kText = 1,
-	};
 	POINT m_CursorPos{};
 	bool m_bSpeedHavingChanged = false;
 	bool m_bLeftDowned = false;
@@ -87,21 +81,18 @@ private:
 	void UpdateDrawingInterval();
 	void CheckWebpSupport();
 
+	SDxLibInit* m_pDxLibInit = nullptr;
 	CDxLibMidway* m_pDxLibMidway = nullptr;
 	CMfMediaPlayer* m_pMfMediaPlayer = nullptr;
-
-	void UpdateScreen();
-
-	std::wstring m_wstrTextFontName = L"游明朝 Demibold";
 
 	std::vector<adv::TextDatum> m_textData;
 	size_t m_nTextIndex = 0;
 
 	void ShiftText(bool bForward);
 	void UpdateText();
-	void OnAudioPlayerEvent(unsigned long ulEvent);
-	void AutoTexting();
 
+	CDxLibClock m_textClock;
+	void CheckTimer();
 };
 
 #endif //MAIN_WINDOW_H_

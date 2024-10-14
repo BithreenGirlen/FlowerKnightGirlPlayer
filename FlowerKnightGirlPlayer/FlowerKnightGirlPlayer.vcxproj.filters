@@ -237,19 +237,10 @@
     <ClCompile Include="dxlib_text_writer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="dxlib_setup.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="dxlib_midway.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="dxlib_still_image_drawer.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="win32_window.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="dxlib_win32.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="mf_media_player.cpp">
@@ -259,6 +250,12 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="win_image.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="dxlib_init.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="dxlib_clock.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -299,19 +296,10 @@
     <ClInclude Include="dxlib_text_writer.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="dxlib_setup.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="dxlib_midway.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="dxlib_still_image_drawer.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="win32_window.h">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
-    <ClInclude Include="dxlib_win32.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="mf_media_player.h">
@@ -323,7 +311,13 @@
     <ClInclude Include="win_image.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="image_info.h">
+    <ClInclude Include="image_frame.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="dxlib_init.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="dxlib_clock.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
   </ItemGroup>

@@ -5,13 +5,11 @@
 #include <ntstatus.h>
 #include <CommCtrl.h>
 
-
 #include "main_window.h"
 #include "win_filesystem.h"
 #include "win_dialogue.h"
 #include "win_text.h"
 #include "fkg.h"
-#include "dxlib_setup.h"
 #include "media_setting_dialogue.h"
 
 CMainWindow::CMainWindow()
@@ -21,7 +19,7 @@ CMainWindow::CMainWindow()
 
 CMainWindow::~CMainWindow()
 {
-	dxlib_setup::ShutdownDxLib();
+
 }
 
 bool CMainWindow::Create(HINSTANCE hInstance, const wchar_t* pwzWindowName)
@@ -46,8 +44,12 @@ bool CMainWindow::Create(HINSTANCE hInstance, const wchar_t* pwzWindowName)
 	{
 		m_hInstance = hInstance;
 
+		UINT uiDpi = ::GetDpiForSystem();
+		int iWindowWidth = ::MulDiv(200, uiDpi, USER_DEFAULT_SCREEN_DPI);
+		int iWindowHeight = ::MulDiv(200, uiDpi, USER_DEFAULT_SCREEN_DPI);
+
 		m_hWnd = ::CreateWindowW(m_swzClassName, pwzWindowName, WS_OVERLAPPEDWINDOW & ~WS_MINIMIZEBOX & ~WS_MAXIMIZEBOX & ~WS_THICKFRAME,
-			CW_USEDEFAULT, CW_USEDEFAULT, 200, 200, nullptr, nullptr, hInstance, this);
+			CW_USEDEFAULT, CW_USEDEFAULT, iWindowWidth, iWindowHeight, nullptr, nullptr, hInstance, this);
 		if (m_hWnd != nullptr)
 		{
 			return true;
@@ -142,9 +144,6 @@ LRESULT CMainWindow::HandleMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM l
 		return OnLButtonUp(wParam, lParam);
 	case WM_MBUTTONUP:
 		return OnMButtonUp(wParam, lParam);
-	case EventMessage::kAudioPlayer:
-		OnAudioPlayerEvent(static_cast<unsigned long>(lParam));
-		break;
 	default:
 		break;
 	}
@@ -158,10 +157,10 @@ LRESULT CMainWindow::OnCreate(HWND hWnd)
 
 	InitialiseMenuBar();
 
-	bool bRet = dxlib_setup::SetupDxLib(m_hWnd);
-	if (!bRet)
+	m_pDxLibInit = new SDxLibInit(m_hWnd);
+	if (m_pDxLibInit->iDxLibInitialised == -1)
 	{
-		::MessageBoxW(nullptr, L"Failed to setup DxLib.", L"Error", MB_ICONERROR);
+		::MessageBoxW(m_hWnd, L"Failed to setup DxLib.", L"Error", MB_ICONERROR);
 	}
 
 	UpdateDrawingInterval();
@@ -170,9 +169,9 @@ LRESULT CMainWindow::OnCreate(HWND hWnd)
 	m_pDxLibMidway = new CDxLibMidway(m_hWnd, m_bWebpSupported);
 	if (m_pDxLibMidway != nullptr)
 	{
-		m_pDxLibMidway->SetFont(m_wstrTextFontName.c_str(), 24, true, true);
+		m_pDxLibMidway->SetFont(L"游明朝 Demibold", 24, true, true);
 	}
-	m_pMfMediaPlayer = new CMfMediaPlayer(m_hWnd, EventMessage::kAudioPlayer);
+	m_pMfMediaPlayer = new CMfMediaPlayer(nullptr, 0);
 
 	return 0;
 }
@@ -196,6 +195,11 @@ LRESULT CMainWindow::OnClose()
 		delete m_pDxLibMidway;
 		m_pDxLibMidway = nullptr;
 	}
+	if (m_pDxLibInit != nullptr)
+	{
+		delete m_pDxLibInit;
+		m_pDxLibInit = nullptr;
+	}
 
 	::DestroyWindow(m_hWnd);
 	::UnregisterClassW(m_swzClassName, m_hInstance);
@@ -211,6 +215,10 @@ LRESULT CMainWindow::OnPaint()
 	if (m_pDxLibMidway != nullptr)
 	{
 		m_pDxLibMidway->Redraw(m_fDelta);
+		if (m_pDxLibMidway->IsPlayReady())
+		{
+			CheckTimer();
+		}
 	}
 
 	::EndPaint(m_hWnd, &ps);
@@ -236,18 +244,16 @@ LRESULT CMainWindow::OnKeyUp(WPARAM wParam, LPARAM lParam)
 	case VK_DOWN:
 		KeyUpOnNextFile();
 		break;
-	case 0x43: // Key C
+	case 'C':
 		if (m_pDxLibMidway != nullptr)
 		{
 			m_pDxLibMidway->SwitchTextColour();
-			UpdateScreen();
 		}
 		break;
-	case 0x54: // Key T
+	case 'T':
 		if (m_pDxLibMidway != nullptr)
 		{
 			m_pDxLibMidway->SwitchMessageVisibility();
-			UpdateScreen();
 		}
 		break;
 	default:
@@ -259,8 +265,8 @@ LRESULT CMainWindow::OnKeyUp(WPARAM wParam, LPARAM lParam)
 LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 {
 	int wmId = LOWORD(wParam);
-	int iControlWnd = LOWORD(lParam);
-	if (iControlWnd == 0)
+	int wmKind = LOWORD(lParam);
+	if (wmKind == 0)
 	{
 		/*Menus*/
 		switch (wmId)
@@ -283,36 +289,28 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 /*WM_TIMER*/
 LRESULT CMainWindow::OnTimer(WPARAM wParam)
 {
-	switch (wParam)
-	{
-	case Timer::kText:
-		AutoTexting();
-		break;
-	default:
-		break;
-	}
 	return 0;
 }
 /*WM_MOUSEWHEEL*/
 LRESULT CMainWindow::OnMouseWheel(WPARAM wParam, LPARAM lParam)
 {
 	int iScroll = -static_cast<short>(HIWORD(wParam)) / WHEEL_DELTA;
-	WORD wKey = LOWORD(wParam);
+	WORD usKey = LOWORD(wParam);
 
 	if (m_pDxLibMidway != nullptr)
 	{
-		if (wKey == 0)
+		if (usKey == 0)
 		{
 			m_pDxLibMidway->RescaleSize(iScroll > 0);
 		}
 
-		if (wKey == MK_LBUTTON)
+		if (usKey == MK_LBUTTON)
 		{
 			m_pDxLibMidway->RescaleTime(iScroll > 0);
 			m_bSpeedHavingChanged = true;
 		}
 
-		if (wKey == MK_RBUTTON)
+		if (usKey == MK_RBUTTON)
 		{
 			ShiftText(iScroll > 0);
 		}
@@ -532,7 +530,7 @@ bool CMainWindow::SetupScenario(const wchar_t* pwzFilePath)
 	bool bRet = fkg::LoadScenarioFile(pwzFilePath, textData, imageData);
 	if (!bRet)
 	{
-		win_dialogue::ShowMessageBox(L"Load error", std::wstring(L"Failed to load file: ").append(pwzFilePath).c_str());
+		::MessageBoxW(m_hWnd, std::wstring(L"Failed to load file: ").append(pwzFilePath).c_str(), L"Load error", MB_ICONERROR);
 	}
 
 	if (m_pDxLibMidway != nullptr)
@@ -586,11 +584,6 @@ void CMainWindow::CheckWebpSupport()
 		m_bWebpSupported = sRtlOsVersionInfoEx.dwMajorVersion >= 10 && sRtlOsVersionInfoEx.dwBuildNumber >= 17763;
 	}
 }
-/*再描画要求*/
-void CMainWindow::UpdateScreen()
-{
-	::InvalidateRect(m_hWnd, nullptr, FALSE);
-}
 /*文章送り・戻し*/
 void CMainWindow::ShiftText(bool bForward)
 {
@@ -609,7 +602,7 @@ void CMainWindow::ShiftText(bool bForward)
 /*文章更新*/
 void CMainWindow::UpdateText()
 {
-	if (!m_textData.empty())
+	if (m_nTextIndex < m_textData.size())
 	{
 		const adv::TextDatum& t = m_textData.at(m_nTextIndex);
 		if (!t.wstrVoicePath.empty())
@@ -618,43 +611,29 @@ void CMainWindow::UpdateText()
 			{
 				m_pMfMediaPlayer->Play(t.wstrVoicePath.c_str());
 			}
+		}
 
-			::KillTimer(m_hWnd, Timer::kText);
-		}
-		else
-		{
-			constexpr unsigned int kTimerInterval = 2000;
-			::SetTimer(m_hWnd, Timer::kText, kTimerInterval, nullptr);
-		}
+		m_textClock.Restart();
 
 		if (m_pDxLibMidway != nullptr)
 		{
 			std::wstring wstr = t.wstrText;
-			if (t.wstrText.back() != L'\n') wstr += L'\n';
+			if (!t.wstrText.empty() && t.wstrText.back() != L'\n') wstr += L'\n';
 			wstr += std::to_wstring(m_nTextIndex + 1) + L"/" + std::to_wstring(m_textData.size());
 			m_pDxLibMidway->SetMessageToDraw(wstr);
 		}
 	}
-
-	UpdateScreen();
 }
-/*IMFMediaEngineNotify::EventNotify*/
-void CMainWindow::OnAudioPlayerEvent(unsigned long ulEvent)
+
+void CMainWindow::CheckTimer()
 {
-	switch (ulEvent)
+	constexpr float fAutoPlayInterval = 2000.f;
+	float fMilliSecond = m_textClock.GetElapsedTime();
+	if (m_pMfMediaPlayer != nullptr)
 	{
-	case MF_MEDIA_ENGINE_EVENT_LOADEDMETADATA:
-
-		break;
-	case MF_MEDIA_ENGINE_EVENT_ENDED:
-		AutoTexting();
-		break;
-	default:
-		break;
+		if (m_pMfMediaPlayer->IsEnded() && fMilliSecond > fAutoPlayInterval)
+		{
+			if (m_nTextIndex < m_textData.size() - 1)ShiftText(true);
+		}
 	}
-}
-/*自動送り*/
-void CMainWindow::AutoTexting()
-{
-	if (m_nTextIndex < m_textData.size() - 1)ShiftText(true);
 }

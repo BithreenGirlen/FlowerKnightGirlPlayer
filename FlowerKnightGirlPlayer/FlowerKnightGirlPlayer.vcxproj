@@ -196,13 +196,13 @@
     <ClCompile Include="deps\spine-cpp\src\spine\Updatable.cpp" />
     <ClCompile Include="deps\spine-cpp\src\spine\VertexAttachment.cpp" />
     <ClCompile Include="deps\spine-cpp\src\spine\VertexEffect.cpp" />
+    <ClCompile Include="dxlib_clock.cpp" />
+    <ClCompile Include="dxlib_init.cpp" />
     <ClCompile Include="dxlib_midway.cpp" />
-    <ClCompile Include="dxlib_setup.cpp" />
     <ClCompile Include="dxlib_spine.cpp" />
     <ClCompile Include="dxlib_spine_player.cpp" />
     <ClCompile Include="dxlib_still_image_drawer.cpp" />
     <ClCompile Include="dxlib_text_writer.cpp" />
-    <ClCompile Include="dxlib_win32.cpp" />
     <ClCompile Include="fkg.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="main_window.cpp" />
@@ -210,7 +210,6 @@
     <ClCompile Include="mf_media_player.cpp" />
     <ClCompile Include="spine_loader.cpp" />
     <ClCompile Include="text_utility.cpp" />
-    <ClCompile Include="win32_window.cpp" />
     <ClCompile Include="win_dialogue.cpp" />
     <ClCompile Include="win_filesystem.cpp" />
     <ClCompile Include="win_image.cpp" />
@@ -218,22 +217,21 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="adv.h" />
+    <ClInclude Include="dxlib_clock.h" />
+    <ClInclude Include="dxlib_init.h" />
     <ClInclude Include="dxlib_still_image_drawer.h" />
     <ClInclude Include="dxlib_midway.h" />
-    <ClInclude Include="dxlib_setup.h" />
     <ClInclude Include="dxlib_spine.h" />
     <ClInclude Include="dxlib_spine_player.h" />
     <ClInclude Include="dxlib_text_writer.h" />
-    <ClInclude Include="dxlib_win32.h" />
     <ClInclude Include="fkg.h" />
     <ClInclude Include="framework.h" />
-    <ClInclude Include="image_info.h" />
+    <ClInclude Include="image_frame.h" />
     <ClInclude Include="main_window.h" />
     <ClInclude Include="media_setting_dialogue.h" />
     <ClInclude Include="mf_media_player.h" />
     <ClInclude Include="spine_loader.h" />
     <ClInclude Include="text_utility.h" />
-    <ClInclude Include="win32_window.h" />
     <ClInclude Include="win_dialogue.h" />
     <ClInclude Include="win_filesystem.h" />
     <ClInclude Include="win_image.h" />
