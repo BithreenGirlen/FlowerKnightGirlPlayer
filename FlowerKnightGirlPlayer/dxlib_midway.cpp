@@ -42,8 +42,7 @@ bool CDxLibMidway::SetResources(const std::vector<adv::ImageDatum>& imageData)
 			SImageFrame s{};
 			if (!imageDatum.bSpine)
 			{
-				const std::wstring& wstrFilePath = win_text::WidenANSI(imageDatum.strFilePath);
-				bool bRet = win_image::LoadImageToMemory(wstrFilePath.c_str(), &s, 1.6875f);
+				bool bRet = win_image::LoadImageToMemory(imageDatum.wstrFilePath.c_str(), &s, 1.6875f);
 				if (bRet)
 				{
 					imageFrames.push_back(std::move(s));
@@ -62,8 +61,8 @@ bool CDxLibMidway::SetResources(const std::vector<adv::ImageDatum>& imageData)
 		{
 			if (imageDatum.bSpine)
 			{
-				std::string strAtlasPath = imageDatum.strFilePath + ".atlas";
-				std::string strSkelPath = imageDatum.strFilePath + ".json";
+				std::string strAtlasPath = win_text::NarrowUtf8(imageDatum.wstrFilePath) + ".atlas";
+				std::string strSkelPath = win_text::NarrowUtf8(imageDatum.wstrFilePath) + ".json";
 
 				atlasPaths.push_back(strAtlasPath);
 				skelPaths.push_back(strSkelPath);

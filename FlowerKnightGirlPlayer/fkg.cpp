@@ -80,21 +80,21 @@ namespace fkg
 		}
 	}
 
-	std::string g_strResourceFolderPath;
+	std::wstring g_wstrResourceFolderPath;
 
 	bool SetResouceFolderPath(const std::wstring& wstrBookFilePath)
 	{
 		size_t nPos = wstrBookFilePath.rfind(L"Episode");
 		if (nPos == std::wstring::npos)return false;
 
-		g_strResourceFolderPath = win_text::NarrowANSI(wstrBookFilePath.substr(0, nPos)) + "Resource\\";
+		g_wstrResourceFolderPath = wstrBookFilePath.substr(0, nPos) + L"Resource\\";
 		return true;
 	}
 
-	std::string RelativePathToAbsoluteFilePath(std::string& strPath)
+	std::wstring RelativePathToAbsoluteFilePath(std::string& strPath)
 	{
 		text_utility::ReplaceAll(strPath, "/", "\\");
-		return g_strResourceFolderPath + strPath;
+		return g_wstrResourceFolderPath + win_text::WidenUtf8(strPath);
 	}
 
 	void ReplaceNewLineEscape(std::string& strText)
@@ -125,18 +125,18 @@ bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::Tex
 			textDatum.wstrText = win_text::WidenUtf8(resourceToken.strText);
 			if (!resourceToken.strFileName.empty())
 			{
-				textDatum.wstrVoicePath = win_text::WidenANSI(RelativePathToAbsoluteFilePath(resourceToken.strFileName)) + L".mp3";
+				textDatum.wstrVoicePath = RelativePathToAbsoluteFilePath(resourceToken.strFileName) + L".mp3";
 			}
 			textData.push_back(textDatum);
 			break;
 		case fkg::token_type::kImage:
 			imageDatum.bSpine = false;
-			imageDatum.strFilePath = RelativePathToAbsoluteFilePath(resourceToken.strFileName) + ".png";
+			imageDatum.wstrFilePath = RelativePathToAbsoluteFilePath(resourceToken.strFileName) + L".png";
 			imageData.push_back(imageDatum);
 			break;
 		case fkg::token_type::kSpine:
 			imageDatum.bSpine = true;
-			imageDatum.strFilePath = RelativePathToAbsoluteFilePath(resourceToken.strFileName);
+			imageDatum.wstrFilePath = RelativePathToAbsoluteFilePath(resourceToken.strFileName);
 			imageData.push_back(imageDatum);
 			break;
 		}

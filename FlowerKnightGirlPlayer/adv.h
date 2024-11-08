@@ -13,7 +13,7 @@ namespace adv
 
 	struct ImageDatum
 	{
-		std::string strFilePath;
+		std::wstring wstrFilePath;
 		bool bSpine = false;
 	};
 }
