@@ -84,6 +84,7 @@ private:
 	void UpdatePosition();
 	void UpdateScaletonScale();
 	void UpdateTimeScale();
+	void UpdateAnimation();
 
 	void ClearAnimationTracks();
 

@@ -155,21 +155,11 @@ void CDxLibSpinePlayer::MoveViewPoint(int iX, int iY)
 /*動作移行*/
 void CDxLibSpinePlayer::ShiftAnimation()
 {
-	if (m_animationNames.empty())return;
-
 	++m_nAnimationIndex;
-	if (m_nAnimationIndex > m_animationNames.size() - 1)m_nAnimationIndex = 0;
+	if (m_nAnimationIndex >= m_animationNames.size())m_nAnimationIndex = 0;
 
 	ClearAnimationTracks();
-
-	for (size_t i = 0; i < m_drawables.size(); ++i)
-	{
-		spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(m_nAnimationIndex).c_str());
-		if (animation != nullptr)
-		{
-			m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
-		}
-	}
+	UpdateAnimation();
 }
 /*装い移行*/
 void CDxLibSpinePlayer::ShiftSkin()
@@ -337,7 +327,7 @@ void CDxLibSpinePlayer::MixAnimations(const std::vector<std::string>& animationN
 		}
 	}
 }
-
+/*動作切り替え順指定*/
 void CDxLibSpinePlayer::SetAnimationOrder(const std::vector<std::string>& animationNames)
 {
 	const auto IsFound = [&animationNames](const std::string& str)
@@ -357,14 +347,7 @@ void CDxLibSpinePlayer::SetAnimationOrder(const std::vector<std::string>& animat
 		m_animationNames = animationNames;
 		m_nAnimationIndex = 0;
 
-		for (size_t i = 0; i < m_skeletonData.size();++i)
-		{
-			spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(m_nAnimationIndex).c_str());
-			if (animation != nullptr)
-			{
-				m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
-			}
-		}
+		UpdateAnimation();
 	}
 }
 /*消去*/
@@ -409,17 +392,7 @@ bool CDxLibSpinePlayer::SetupDrawer()
 		}
 	}
 
-	if (!m_animationNames.empty())
-	{
-		for (size_t i = 0; i < m_skeletonData.size(); ++i)
-		{
-			spine::Animation *animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(0).c_str());
-			if (animation != nullptr)
-			{
-				m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
-			}
-		}
-	}
+	UpdateAnimation();
 
 	ResetScale();
 
@@ -434,7 +407,7 @@ void CDxLibSpinePlayer::WorkOutDefaultScale()
 	const auto CompareDimention = [this, &fMaxSize](float fWidth, float fHeight)
 		-> void
 		{
-			if (fWidth * fHeight > fMaxSize)
+			if (fWidth > 0.f && fHeight > 0.f && fWidth * fHeight > fMaxSize)
 			{
 				m_fBaseSize.u = fWidth;
 				m_fBaseSize.v = fHeight;
@@ -471,23 +444,16 @@ void CDxLibSpinePlayer::WorkOutDefaultScale()
 				if (pAttachment->getRTTI().isExactly(spine::RegionAttachment::rtti))
 				{
 					spine::RegionAttachment* pRegionAttachment = (spine::RegionAttachment*)pAttachment;
-					if (pRegionAttachment->getWidth() > 0.f && pRegionAttachment->getHeight() > 0.f)
-					{
-						CompareDimention
-						(
-							pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(),
-							pRegionAttachment->getHeight() * pRegionAttachment->getScaleY()
-						);
-					}
+
+					CompareDimention(pRegionAttachment->getWidth() * pRegionAttachment->getScaleX(), pRegionAttachment->getHeight() * pRegionAttachment->getScaleY());
 				}
 				else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
 				{
 					spine::MeshAttachment* pMeshAttachment = (spine::MeshAttachment*)pAttachment;
-					if (pMeshAttachment->getWidth() > 0.f && pMeshAttachment->getHeight() > 0.f)
-					{
-						float fScale = pMeshAttachment->getWidth() > Constants::kMinAtlas && pMeshAttachment->getHeight() > Constants::kMinAtlas ? 1.f : 2.f;
-						CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
-					}
+
+					float fScale = pMeshAttachment->getWidth() > Constants::kMinAtlas && pMeshAttachment->getHeight() > Constants::kMinAtlas ? 1.f : 2.f;
+
+					CompareDimention(pMeshAttachment->getWidth() * fScale, pMeshAttachment->getHeight() * fScale);
 				}
 			}
 		}
@@ -505,21 +471,31 @@ void CDxLibSpinePlayer::WorkOutDefaultScale()
 	if (iSkeletonWidth > iDesktopWidth || iSkeletonHeight > iDesktopHeight)
 	{
 		float fScaleX = static_cast<float>(iDesktopWidth) / iSkeletonWidth;
-		if (fScaleX < 0.49f)fScaleX = 0.5f;
 		float fScaleY = static_cast<float>(iDesktopHeight) / iSkeletonHeight;
-		if (fScaleY < 0.49f)fScaleY = 0.5f;
 
-		if (iDesktopWidth > iDesktopHeight)
+		if (fScaleX > fScaleY)
 		{
 			m_fDefaultScale = fScaleY;
+
+			/*
+			* The sum of
+			* (1) Centre-point difference between world- and locale-view.
+			* (2) deviance from ideal scaling. (This becomes zero when ideally scaled.)
+			* results in
+			* (iSkeletonWidth - iDesktopWidth) / 2.f + (iDesktopWidth - iSkeletonWidth * fScaleY) / 2.f
+			*  = (iSkeletonWidth * (1 - fScaleY)) / 2.f
+			*/
+			m_fDefaultOffset.u = iSkeletonWidth > iDesktopWidth ? (iSkeletonWidth * (1 - fScaleY)) / 2.f : 0.f;
+			m_fDefaultOffset.v = iSkeletonHeight > iDesktopHeight ? (iSkeletonHeight - iDesktopHeight) / 2.f : 0.f;
 		}
 		else
 		{
 			m_fDefaultScale = fScaleX;
+
+			m_fDefaultOffset.u = iSkeletonWidth > iDesktopWidth ? (iSkeletonWidth - iDesktopWidth) / 2.f : 0.f;
+			m_fDefaultOffset.v = iSkeletonHeight > iDesktopHeight ? (iSkeletonHeight * (1 - fScaleX)) / 2.f : 0.f;
 		}
 
-		m_fDefaultOffset.u = iSkeletonWidth > iDesktopWidth ? (iSkeletonWidth - iDesktopWidth) * fScaleX : 0.f;
-		m_fDefaultOffset.v = iSkeletonHeight > iDesktopHeight ? (iSkeletonHeight - iDesktopHeight) * fScaleY : 0.f;
 	}
 }
 /*視点補正*/
@@ -537,13 +513,8 @@ void CDxLibSpinePlayer::AdjustViewOffset()
 		int iDesktopHeight = ::GetSystemMetrics(SM_CYSCREEN);
 		if (iClientWidth < iDesktopWidth && iClientHeight < iDesktopHeight)
 		{
-			/*
-			* (m_fBaseSize.u * m_fDefaultScale) : default window size.
-			* (m_fDefaultScale - m_fSkeletonScale) : deviation from default scale.
-			* Division by 2.f : centre point of rectangle.
-			*/
-			m_fViewOffset.u = (m_fBaseSize.u * m_fDefaultScale) * (m_fDefaultScale - m_fSkeletonScale) / 2.f;
-			m_fViewOffset.v = (m_fBaseSize.v * m_fDefaultScale) * (m_fDefaultScale - m_fSkeletonScale) / 2.f;
+			m_fViewOffset.u = m_fBaseSize.u * (m_fDefaultScale - m_fSkeletonScale) / 2.f;
+			m_fViewOffset.v = m_fBaseSize.v * (m_fDefaultScale - m_fSkeletonScale) / 2.f;
 		}
 	}
 	UpdatePosition();
@@ -571,6 +542,20 @@ void CDxLibSpinePlayer::UpdateTimeScale()
 	for (size_t i = 0; i < m_drawables.size(); ++i)
 	{
 		m_drawables.at(i).get()->timeScale = m_fTimeScale;
+	}
+}
+/*動作適用*/
+void CDxLibSpinePlayer::UpdateAnimation()
+{
+	if (m_nAnimationIndex >= m_animationNames.size())return;
+
+	for (size_t i = 0; i < m_drawables.size(); ++i)
+	{
+		spine::Animation* animation = m_skeletonData.at(i).get()->findAnimation(m_animationNames.at(m_nAnimationIndex).c_str());
+		if (animation != nullptr)
+		{
+			m_drawables.at(i).get()->animationState->setAnimation(0, animation->getName(), true);
+		}
 	}
 }
 /*合成動作消去*/

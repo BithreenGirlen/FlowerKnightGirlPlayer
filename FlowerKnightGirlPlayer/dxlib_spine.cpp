@@ -1,5 +1,9 @@
 ﻿
 
+#if	defined(_WIN32) && defined(_UNICODE)
+#include <locale.h>
+#endif
+
 #include "dxlib_spine.h"
 
 namespace spine
@@ -31,6 +35,29 @@ CDxLibSpineDrawer::CDxLibSpineDrawer(spine::SkeletonData* pSkeletonData, spine::
 	m_quadIndices.add(2);
 	m_quadIndices.add(3);
 	m_quadIndices.add(0);
+
+	/*
+	* Here custom blend mode is used to avoid the pixels drawn with blend-mode-multiply to be transparent.
+	* ---------- Formula for blend-mode-multiply ----------
+	*   dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA))
+	*   dstA = dstA
+	* -----------------------------------------------------
+	* The fomula above retains destination alpha, so in case initial alpha of the screen being 0, 
+	* it happens that drawn pixels are seen on the screen but unseen when saved as PNG.
+	* 
+	* The solution taken here, not definitive though, is to overwrite alpha formula with that of blend-mode-normal.
+	*/
+	DxLib::SetDrawCustomBlendMode
+	(
+		TRUE,
+		DX_BLEND_DEST_COLOR,
+		DX_BLEND_INV_SRC_ALPHA,
+		DX_BLENDOP_ADD,
+		DX_BLEND_ONE,
+		DX_BLEND_INV_SRC_ALPHA,
+		DX_BLENDOP_ADD,
+		255
+	);
 }
 
 CDxLibSpineDrawer::~CDxLibSpineDrawer()
@@ -54,7 +81,9 @@ void CDxLibSpineDrawer::Update(float fDelta)
 {
 	if (skeleton != nullptr && animationState != nullptr)
 	{
+#ifndef SPINE_4_1_OR_LATER
 		skeleton->update(fDelta);
+#endif
 		animationState->update(fDelta * timeScale);
 		animationState->apply(*skeleton);
 		skeleton->updateWorldTransform();
@@ -85,11 +114,8 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 		}
 
 		spine::Vector<float>* pVertices = &m_worldVertices;
-		int verticesCount = 0;
 		spine::Vector<float>* pAttachmentUvs = nullptr;
-
 		spine::Vector<unsigned short>* pIndices = nullptr;
-		int indicesCount = 0;
 
 		spine::Color* pAttachmentColor = nullptr;
 
@@ -105,21 +131,22 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 				m_clipper.clipEnd(slot);
 				continue;
 			}
-			/*Fetch texture handle stored in AltasPage*/
-			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pRegionAttachment->getRendererObject())->page->getRendererObject())));
 
-			/*
-			* In SDL, SFML and Cocos2d, it is assumed the stride being 2 byte, and as float 4 byte, they set 8 here.
-			* This float type vertice should be converted to the engine's vertex later as does Cocos2d to V3F_C4B_T2F.
-			* In DxLib, this will be converted to DxLib::VERTEX2D.
-			*/
 			m_worldVertices.setSize(8, 0);
-			/*Depends on spine's version whether the first argument is slot or bone.*/
+#ifdef SPINE_4_1_OR_LATER
+			pRegionAttachment->computeWorldVertices(slot, m_worldVertices, 0, 2);
+#else
 			pRegionAttachment->computeWorldVertices(slot.getBone(), m_worldVertices, 0, 2);
-			verticesCount = 4;
+#endif
 			pAttachmentUvs = &pRegionAttachment->getUVs();
 			pIndices = &m_quadIndices;
-			indicesCount = 6;
+
+			/*Fetch texture handle stored in AltasPage*/
+#ifdef SPINE_4_1_OR_LATER
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pRegionAttachment->getRegion())->rendererObject)));
+#else
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pRegionAttachment->getRendererObject())->page->getRendererObject())));
+#endif
 		}
 		else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
 		{
@@ -131,14 +158,16 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 				m_clipper.clipEnd(slot);
 				continue;
 			}
-			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pMeshAttachment->getRendererObject())->page->getRendererObject())));
-
 			m_worldVertices.setSize(pMeshAttachment->getWorldVerticesLength(), 0);
 			pMeshAttachment->computeWorldVertices(slot, 0, pMeshAttachment->getWorldVerticesLength(), m_worldVertices, 0, 2);
-			verticesCount = static_cast<int>(pMeshAttachment->getWorldVerticesLength() / 2);
 			pAttachmentUvs = &pMeshAttachment->getUVs();
 			pIndices = &pMeshAttachment->getTriangles();
-			indicesCount = static_cast<int>(pIndices->size());
+
+#ifdef SPINE_4_1_OR_LATER
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pMeshAttachment->getRegion())->rendererObject)));
+#else
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pMeshAttachment->getRendererObject())->page->getRendererObject())));
+#endif
 		}
 		else if (pAttachment->getRTTI().isExactly(spine::ClippingAttachment::rtti))
 		{
@@ -146,16 +175,23 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 			m_clipper.clipStart(slot, clip);
 			continue;
 		}
-		else continue;
+		else
+		{
+			m_clipper.clipEnd(slot);
+			continue;
+		}
 
 		if (m_clipper.isClipping())
 		{
 			m_clipper.clipTriangles(m_worldVertices, *pIndices, *pAttachmentUvs, 2);
+			if (m_clipper.getClippedTriangles().size() == 0)
+			{
+				m_clipper.clipEnd(slot);
+				continue;
+			}
 			pVertices = &m_clipper.getClippedVertices();
-			verticesCount = static_cast<int>(m_clipper.getClippedVertices().size() / 2);
 			pAttachmentUvs = &m_clipper.getClippedUVs();
 			pIndices = &m_clipper.getClippedTriangles();
-			indicesCount = static_cast<int>(m_clipper.getClippedTriangles().size());
 		}
 
 		const spine::Color& skeletonColor = skeleton->getColor();
@@ -170,7 +206,7 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 
 		/*Convert to DxLib's structure*/
 		m_dxLibVertices.clear();
-		for (int ii = 0; ii < verticesCount * 2; ii +=2)
+		for (int ii = 0; ii < pVertices->size(); ii +=2)
 		{
 			DxLib::VERTEX2D dxLibVertex{};
 			dxLibVertex.pos.x = (*pVertices)[ii];
@@ -198,7 +234,7 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 			iDxLibBlendMode = m_bAlphaPremultiplied ? DX_BLENDMODE_PMA_ADD : DX_BLENDMODE_SPINE_ADDITIVE;
 			break;
 		case spine::BlendMode_Multiply:
-			iDxLibBlendMode = DX_BLENDMODE_SPINE_MULTIPLY;
+			iDxLibBlendMode = DX_BLENDMODE_CUSTOM;
 			break;
 		case spine::BlendMode_Screen:
 			iDxLibBlendMode = DX_BLENDMODE_SPINE_SCREEN;
@@ -255,6 +291,12 @@ void CDxLibTextureLoader::load(spine::AtlasPage& page, const spine::String& path
 			int iCharCode = DxLib::GetUseCharCodeFormat();
 			int iWcharCode = DxLib::Get_wchar_t_CharCodeFormat();
 
+			char* pzLocale = setlocale(LC_ALL, nullptr);
+			if (pzLocale != nullptr && strstr(pzLocale, ".utf8") != nullptr)
+			{
+				iCharCode = 65001;
+			}
+
 			spine::Vector<wchar_t> vBuffer;
 			vBuffer.setSize(path.length() * sizeof(wchar_t), L'\0');
 
@@ -290,7 +332,11 @@ void CDxLibTextureLoader::load(spine::AtlasPage& page, const spine::String& path
 	}
 	void* p = reinterpret_cast<void*>(static_cast<unsigned long long>(iDxLibTexture));
 
+#ifdef SPINE_4_1_OR_LATER
+	page.texture = p;
+#else
 	page.setRendererObject(p);
+#endif
 }
 
 void CDxLibTextureLoader::unload(void* texture)
