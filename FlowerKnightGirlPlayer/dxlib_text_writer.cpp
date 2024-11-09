@@ -30,6 +30,11 @@ bool CDxLibTextWriter::SetFont(const wchar_t* pwzFontFileName, int iFontSize, bo
         bItalic ? TRUE : FALSE
     );
 
+    if (m_iFontHandle != -1)
+    {
+        DxLib::SetFontLineSpaceToHandle(static_cast<int>(iFontSize * 1.6), m_iFontHandle);
+    }
+
     return m_iFontHandle != -1;
 }
 

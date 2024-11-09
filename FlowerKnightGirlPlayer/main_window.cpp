@@ -172,7 +172,7 @@ LRESULT CMainWindow::OnCreate(HWND hWnd)
 	m_pDxLibMidway = new CDxLibMidway(m_hWnd, m_bWebpSupported);
 	if (m_pDxLibMidway != nullptr)
 	{
-		m_pDxLibMidway->SetFont(L"游明朝 Demibold", 24, true, true);
+		m_pDxLibMidway->SetFont(L"游明朝 Demibold", 28, true, true);
 	}
 	m_pMfMediaPlayer = new CMfMediaPlayer(m_hWnd, EventMessage::kAudioPlayer);
 
