@@ -44,16 +44,22 @@ private:
 	LRESULT OnRButtonUp(WPARAM wParam, LPARAM lParam);
 	LRESULT OnMButtonUp(WPARAM wParam, LPARAM lParam);
 
-	enum Menu
+	struct Menu abstract final
 	{
-		kOpenFile = 1,
-		kAudioSetting,
-		kSyncImage,
-		kLabelStartIndex
+		enum
+		{
+			kOpenFile = 1,
+			kAudioSetting,
+			kSyncImage,
+			kLabelStartIndex
+		};
 	};
-	enum MenuBar
+	struct MenuBar abstract final
 	{
-		kFile, kAudio, kImage
+		enum
+		{
+			kFile, kAudio, kImage
+		};
 	};
 
 	HMENU m_hMenuBar = nullptr;

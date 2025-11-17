@@ -1,13 +1,28 @@
 ﻿
 #include <locale.h>
 
+#include <SDKDDKVer.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+
+/*CommCtrl*/
+#if defined _M_IX86
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='x86' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_IA64
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='ia64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#elif defined _M_X64
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='amd64' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#else
+#pragma comment(linker, "/manifestdependency:\"type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'\"")
+#endif
+
 #ifdef _DEBUG
 #pragma comment(lib, "spine-cpp-3.8/lib/spine-cpp-d.lib")
 #else
 #pragma comment(lib, "spine-cpp-3.8/lib/spine-cpp.lib")
 #endif // _DEBUG
 
-#include "framework.h"
 #include "main_window.h"
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,

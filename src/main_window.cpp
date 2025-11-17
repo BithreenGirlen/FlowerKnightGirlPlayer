@@ -7,7 +7,8 @@
 #include "win_dialogue.h"
 #include "win_filesystem.h"
 #include "path_utility.h"
-#include "media_setting_dialogue.h"
+#include "native-ui/media_setting_dialogue.h"
+#include "native-ui/window_menu.h"
 
 CMainWindow::CMainWindow()
 {
@@ -450,19 +451,12 @@ LRESULT CMainWindow::OnRButtonUp(WPARAM wParam, LPARAM lParam)
 		const auto& labelData = m_pScenePlayer->GetLabelData();
 		if (labelData.empty())return 0;
 
-		HMENU hPopupMenu = ::CreatePopupMenu();
-		if (hPopupMenu != nullptr)
+		window_menu::CContextMenu contextMenu;
+		for (size_t i = 0; i < labelData.size(); ++i)
 		{
-			for (size_t i = 0; i < labelData.size(); ++i)
-			{
-				::AppendMenuW(hPopupMenu, MF_STRING, Menu::kLabelStartIndex + i, labelData[i].wstrCaption.c_str());
-			}
-
-			POINT point{};
-			::GetCursorPos(&point);
-			::TrackPopupMenu(hPopupMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_LEFTBUTTON, point.x, point.y, 0, m_hWnd, nullptr);
-			::DestroyMenu(hPopupMenu);
+			contextMenu.AddItems({ {Menu::kLabelStartIndex + i, labelData[i].wstrCaption.c_str()} });
 		}
+		contextMenu.Display(m_hWnd);
 	}
 
 	return 0;
@@ -492,69 +486,37 @@ LRESULT CMainWindow::OnMButtonUp(WPARAM wParam, LPARAM lParam)
 /*操作欄作成*/
 void CMainWindow::InitialiseMenuBar()
 {
-	HMENU hMenuFile = nullptr;
-	HMENU hMenuAudio = nullptr;
-	HMENU hMenuImage = nullptr;
-	HMENU hMenuBar = nullptr;
-	BOOL iRet = FALSE;
+	if (::IsMenu(m_hMenuBar))return;
 
-	if (m_hMenuBar != nullptr)return;
+	HMENU hMenu = window_menu::MenuBuilder(
+		{
+			{0, L"File", window_menu::MenuBuilder(
+				{
+					{Menu::kOpenFile, L"Open"},
+				}).Get(),
+			},
+			{0, L"Setting", window_menu::MenuBuilder(
+				{
+					{Menu::kAudioSetting, L"Audio"},
+				}).Get()
+			},
+			{0, L"Image", window_menu::MenuBuilder(
+				{
+					{Menu::kSyncImage, L"Sync"}
+				}).Get()
+			}
+		}).Get();
 
-	/*ファイル*/
-	hMenuFile = ::CreateMenu();
-	if (hMenuFile == nullptr)goto failed;
-	iRet = ::AppendMenuA(hMenuFile, MF_STRING, Menu::kOpenFile, "Open");
-	if (iRet == 0)goto failed;
-
-	/*音声*/
-	hMenuAudio = ::CreateMenu();
-	if (hMenuAudio == nullptr)goto failed;
-
-	iRet = ::AppendMenuA(hMenuAudio, MF_STRING, Menu::kAudioSetting, "Setting");
-	if (iRet == 0)goto failed;
-
-	/*画像*/
-	hMenuImage = ::CreateMenu();
-	iRet = ::AppendMenuA(hMenuImage, MF_STRING, Menu::kSyncImage, "Sync");
-	if (iRet == 0)goto failed;
-
-	/*分類*/
-	hMenuBar = ::CreateMenu();
-	if (hMenuBar == nullptr) goto failed;
-	iRet = ::AppendMenuA(hMenuBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hMenuFile), "File");
-	if (iRet == 0)goto failed;
-	iRet = ::AppendMenuA(hMenuBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hMenuAudio), "Audio");
-	if (iRet == 0)goto failed;
-	iRet = ::AppendMenuA(hMenuBar, MF_POPUP, reinterpret_cast<UINT_PTR>(hMenuImage), "Image");
-	if (iRet == 0)goto failed;
-
-	iRet = ::SetMenu(m_hWnd, hMenuBar);
-	if (iRet == 0)goto failed;
-
-	m_hMenuBar = hMenuBar;
-
-	/*正常終了*/
-	return;
-
-failed:
-	std::wstring wstrMessage = L"Failed to create menu; code: " + std::to_wstring(::GetLastError());
-	::MessageBoxW(nullptr, wstrMessage.c_str(), L"Error", MB_ICONERROR);
-	/*SetMenu成功後はウィンドウ破棄時に破棄されるが、今は紐づけ前なのでここで破棄する。*/
-	if (hMenuFile != nullptr)
+	if (!::IsMenu(hMenu) || ::SetMenu(m_hWnd, hMenu) == 0)
 	{
-		::DestroyMenu(hMenuFile);
+		std::wstring wstrMessage = L"Failed to create menu; code: " + std::to_wstring(::GetLastError());
+		::MessageBoxW(nullptr, wstrMessage.c_str(), L"Error", MB_ICONERROR);
+
+		if (::IsMenu(hMenu))::DestroyMenu(hMenu);
 	}
-	if (hMenuAudio != nullptr)
+	else
 	{
-		::DestroyMenu(hMenuAudio);
-	}
-	if (hMenuImage != nullptr)
-	{
-		::DestroyMenu(hMenuImage);
-	}
-	if (hMenuBar != nullptr)
-	{
-		::DestroyMenu(hMenuBar);
+		m_hMenuBar = hMenu;
 	}
 }
 
