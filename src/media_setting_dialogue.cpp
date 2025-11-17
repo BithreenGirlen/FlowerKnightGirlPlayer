@@ -12,8 +12,7 @@
 
 CMediaSettingDialogue::CMediaSettingDialogue()
 {
-    int iFontHeight = static_cast<int>(Constants::kFontSize * ::GetDpiForSystem() / 96.f);
-    m_hFont = ::CreateFont(iFontHeight, 0, 0, 0, FW_REGULAR, FALSE, FALSE, FALSE, EASTEUROPE_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, L"yumin");
+    m_hFont = ::CreateFont(Constants::kFontSize, 0, 0, 0, FW_REGULAR, FALSE, FALSE, FALSE, EASTEUROPE_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH, L"DFKai-SB");
 }
 
 CMediaSettingDialogue::~CMediaSettingDialogue()
@@ -24,7 +23,7 @@ CMediaSettingDialogue::~CMediaSettingDialogue()
     }
 }
 
-bool CMediaSettingDialogue::Open(HINSTANCE hInstance, HWND hWnd, void* pMediaPlayer, const wchar_t* pwzWindowName)
+bool CMediaSettingDialogue::Open(HINSTANCE hInstance, HWND hOwnerWndow, void* pMediaPlayer, const wchar_t* pwzWindowName, HICON hIcon)
 {
     WNDCLASSEXW wcex{};
 
@@ -35,25 +34,31 @@ bool CMediaSettingDialogue::Open(HINSTANCE hInstance, HWND hWnd, void* pMediaPla
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = hInstance;
-    //wcex.hIcon = ::LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON_APP));
     wcex.hCursor = ::LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = ::GetSysColorBrush(COLOR_BTNFACE);
-    //wcex.lpszMenuName = MAKEINTRESOURCEW(IDI_ICON_APP);
     wcex.lpszClassName = m_swzClassName;
-    //wcex.hIconSm = ::LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ICON_APP));
+    if (hIcon != nullptr)
+    {
+        wcex.hIcon = hIcon;
+        wcex.hIconSm = hIcon;
+    }
 
     if (::RegisterClassExW(&wcex))
     {
         m_hInstance = hInstance;
-        m_hParentWnd = hWnd;
         m_pMediaPlayer = pMediaPlayer;
 
         UINT uiDpi = ::GetDpiForSystem();
         int iWindowWidth = ::MulDiv(100, uiDpi, USER_DEFAULT_SCREEN_DPI);
         int iWindowHeight = ::MulDiv(200, uiDpi, USER_DEFAULT_SCREEN_DPI);
 
+        RECT rect{};
+        ::GetClientRect(hOwnerWndow, &rect);
+        POINT ownerClientPos{ rect.left, rect.top };
+        ::ClientToScreen(hOwnerWndow, &ownerClientPos);
+
         m_hWnd = ::CreateWindowW(m_swzClassName, pwzWindowName, WS_OVERLAPPEDWINDOW & ~ WS_MINIMIZEBOX & ~ WS_MAXIMIZEBOX & ~WS_THICKFRAME,
-            CW_USEDEFAULT, CW_USEDEFAULT, iWindowWidth, iWindowHeight, hWnd, nullptr, hInstance, this);
+            ownerClientPos.x, ownerClientPos.y, iWindowWidth, iWindowHeight, hOwnerWndow, nullptr, hInstance, this);
         if (m_hWnd != nullptr)
         {
             MessageLoop();
@@ -155,7 +160,7 @@ LRESULT CMediaSettingDialogue::OnCreate(HWND hWnd)
 
     ::ShowWindow(hWnd, SW_NORMAL);
 
-    ::EnableWindow(m_hParentWnd, FALSE);
+    ::EnableWindow(::GetWindow(m_hWnd, GW_OWNER), FALSE);
 
     ::EnumChildWindows(m_hWnd, SetFontCallback, reinterpret_cast<LPARAM>(m_hFont));
 
@@ -170,11 +175,12 @@ LRESULT CMediaSettingDialogue::OnDestroy()
 /*WM_CLOSE*/
 LRESULT CMediaSettingDialogue::OnClose()
 {
-    ::EnableWindow(m_hParentWnd, TRUE);
-    ::BringWindowToTop(m_hParentWnd);
+	HWND hOwnerWnd = ::GetWindow(m_hWnd, GW_OWNER);
+	::EnableWindow(hOwnerWnd, TRUE);
+	::BringWindowToTop(hOwnerWnd);
 
-    ::DestroyWindow(m_hWnd);
-    ::UnregisterClassW(m_swzClassName, m_hInstance);
+	::DestroyWindow(m_hWnd);
+	::UnregisterClassW(m_swzClassName, m_hInstance);
 
     return 0;
 }
@@ -191,46 +197,35 @@ LRESULT CMediaSettingDialogue::OnPaint()
 /*WM_SIZE*/
 LRESULT CMediaSettingDialogue::OnSize()
 {
-    long clientWidth, clientHeight;
-    GetClientAreaSize(&clientWidth, &clientHeight);
-    long lSpaceX = clientWidth / 10;
-    long lSpaceY = clientHeight / 100;
+    RECT rect;
+    ::GetClientRect(m_hWnd, &rect);
+    long w = rect.right - rect.left;
+    long h = rect.bottom - rect.top;
 
-    long lTextWidth = static_cast<long>(Constants::kTextWidth * ::GetDpiForWindow(m_hWnd) / 96.f);
-    long lTextHeight = static_cast<long>(Constants::kFontSize * ::GetDpiForWindow(m_hWnd) / 96.f);
+    long x_space = w / 100 * 10;
+    long y_space = h / 100;
 
-    long x = lSpaceX;
-    long y = lSpaceY + lTextHeight;
-    long w = clientWidth /2 - lSpaceX * 2;
-    long h = clientHeight - lSpaceY * 2 - lTextHeight;
+    long lTextSpace = Constants::kFontSize;
+
     if (m_hVolumeSlider != nullptr)
     {
-        ::MoveWindow(m_hVolumeSlider, x, y, w, h, TRUE);
+        ::MoveWindow(m_hVolumeSlider, x_space, y_space + lTextSpace, w / 2 - x_space * 2, h - y_space * 2 - lTextSpace, TRUE);
     }
 
-    y = lSpaceY;
-    w = lTextWidth;
-    h = lTextHeight;
     if (m_hVolumeText != nullptr)
     {
-        ::MoveWindow(m_hVolumeText, x, y, w, h, TRUE);
+        ::MoveWindow(m_hVolumeText, x_space, y_space, Constants::kTextWidth, Constants::kFontSize, TRUE);
     }
 
-    x = lSpaceX + clientWidth / 2;
-    y = lSpaceY + lTextHeight;
-    w = clientWidth / 2 - lSpaceX * 2;
-    h = clientHeight - lSpaceY * 2 - lTextHeight;
+
     if (m_hRateSlider != nullptr)
     {
-        ::MoveWindow(m_hRateSlider, x, y, w, h, TRUE);
+        ::MoveWindow(m_hRateSlider, w / 2 + x_space, y_space + lTextSpace, w / 2 - x_space * 2, h - y_space * 2 - lTextSpace, TRUE);
     }
 
-    y = lSpaceY;
-    w = lTextWidth;
-    h = lTextHeight;
     if (m_hRateText != nullptr)
     {
-        ::MoveWindow(m_hRateText, x, y, w, h, TRUE);
+        ::MoveWindow(m_hRateText, w / 2 + x_space, y_space, Constants::kTextWidth, Constants::kFontSize, TRUE);
     }
 
     return 0;
@@ -268,8 +263,8 @@ LRESULT CMediaSettingDialogue::OnVScroll(WPARAM wParam, LPARAM lParam)
 LRESULT CMediaSettingDialogue::OnCommand(WPARAM wParam, LPARAM lParam)
 {
     int wmId = LOWORD(wParam);
-    int iControlWnd = LOWORD(lParam);
-    if (iControlWnd == 0)
+    int wmKind = LOWORD(lParam);
+    if (wmKind == 0)
     {
         /*Menus*/
     }
@@ -297,7 +292,7 @@ void CMediaSettingDialogue::CreateSliders()
     m_hRateSlider = ::CreateWindowExW(0, TRACKBAR_CLASS, L"Rate Slider",
         WS_VISIBLE | WS_CHILD | WS_TABSTOP | TBS_VERT | TBS_TOOLTIPS | TBS_BOTH,
         0, 0, 0, 0,
-        m_hWnd, reinterpret_cast<HMENU>(Controls::kRateSlider), m_hInstance, nullptr);
+        m_hWnd, reinterpret_cast<HMENU>(Controls::kRateSkuder), m_hInstance, nullptr);
 
     if (m_hRateSlider != nullptr)
     {
@@ -326,14 +321,6 @@ void CMediaSettingDialogue::SetSliderPosition()
             ::SendMessage(m_hRateSlider, TBM_SETPOS, TRUE, static_cast<LPARAM>(dbRate));
         }
     }
-}
-/*描画領域の大きさ取得*/
-void CMediaSettingDialogue::GetClientAreaSize(long* width, long* height)
-{
-    RECT rect;
-    ::GetClientRect(m_hWnd, &rect);
-    *width = rect.right - rect.left;
-    *height = rect.bottom - rect.top;
 }
 /*EnumChildWindows CALLBACK*/
 BOOL CMediaSettingDialogue::SetFontCallback(HWND hWnd, LPARAM lParam)

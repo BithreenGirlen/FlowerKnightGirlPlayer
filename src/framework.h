@@ -1,9 +1,9 @@
 ﻿#pragma once
 
-#include <winsdkver.h>
+#include <SDKDDKVer.h>
+#define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
-#define WIN32_LEAN_AND_MEAN 
-#include <Windows.h>
+#include <windows.h>
 
 /*CommCtrl*/
 #if defined _M_IX86

@@ -1,9 +1,5 @@
 ﻿
 
-#if	defined(_WIN32) && defined(_UNICODE)
-#include <locale.h>
-#endif
-
 #include "dxlib_spine.h"
 
 namespace spine
@@ -14,20 +10,20 @@ namespace spine
 	}
 }
 
-CDxLibSpineDrawer::CDxLibSpineDrawer(spine::SkeletonData* pSkeletonData, spine::AnimationStateData* pAnimationStateData)
+CDxLibSpineDrawable::CDxLibSpineDrawable(spine::SkeletonData* pSkeletonData, spine::AnimationStateData* pAnimationStateData)
 {
 	spine::Bone::setYDown(true);
 
-	m_dxLibVertices.ensureCapacity(pSkeletonData->getBones().size() * sizeof(DxLib::VERTEX2D) / sizeof(float));
+	m_dxLibVertices.ensureCapacity(128);
 
-	skeleton = new(__FILE__, __LINE__) spine::Skeleton(pSkeletonData);
+	skeleton = new spine::Skeleton(pSkeletonData);
 
 	if (pAnimationStateData == nullptr)
 	{
-		pAnimationStateData = new(__FILE__, __LINE__) spine::AnimationStateData(pSkeletonData);
-		m_bHasOwnAnimationStateData = true;
+		pAnimationStateData = new spine::AnimationStateData(pSkeletonData);
+		m_hasOwnAnimationStateData = true;
 	}
-	animationState = new(__FILE__, __LINE__) spine::AnimationState(pAnimationStateData);
+	animationState = new spine::AnimationState(pAnimationStateData);
 
 	m_quadIndices.add(0);
 	m_quadIndices.add(1);
@@ -42,9 +38,9 @@ CDxLibSpineDrawer::CDxLibSpineDrawer(spine::SkeletonData* pSkeletonData, spine::
 	*   dstRGB = (srcRGB * dstRGB) + (dstRGB * (1-srcA))
 	*   dstA = dstA
 	* -----------------------------------------------------
-	* The fomula above retains destination alpha, so in case initial alpha of the screen being 0, 
+	* The fomula above retains destination alpha, so in case initial alpha of the screen being 0,
 	* it happens that drawn pixels are seen on the screen but unseen when saved as PNG.
-	* 
+	*
 	* The solution taken here, not definitive though, is to overwrite alpha formula with that of blend-mode-normal.
 	*/
 	DxLib::SetDrawCustomBlendMode
@@ -60,11 +56,11 @@ CDxLibSpineDrawer::CDxLibSpineDrawer(spine::SkeletonData* pSkeletonData, spine::
 	);
 }
 
-CDxLibSpineDrawer::~CDxLibSpineDrawer()
+CDxLibSpineDrawable::~CDxLibSpineDrawable()
 {
 	if (animationState != nullptr)
 	{
-		if (m_bHasOwnAnimationStateData)
+		if (m_hasOwnAnimationStateData)
 		{
 			delete animationState->getData();
 		}
@@ -77,24 +73,29 @@ CDxLibSpineDrawer::~CDxLibSpineDrawer()
 	}
 }
 
-void CDxLibSpineDrawer::Update(float fDelta)
+void CDxLibSpineDrawable::Update(float fDelta)
 {
 	if (skeleton != nullptr && animationState != nullptr)
 	{
 #ifndef SPINE_4_1_OR_LATER
 		skeleton->update(fDelta);
 #endif
-		animationState->update(fDelta * timeScale);
+		animationState->update(fDelta);
 		animationState->apply(*skeleton);
+#ifdef SPINE_4_2_OR_LATER
+		skeleton->update(fDelta);
+		skeleton->updateWorldTransform(spine::Physics::Physics_Update);
+#else
 		skeleton->updateWorldTransform();
+#endif
 	}
 }
 
-void CDxLibSpineDrawer::Draw(float fDepth)
+void CDxLibSpineDrawable::Draw()
 {
 	if (skeleton == nullptr || animationState == nullptr)return;
 
-	if (skeleton->getColor().a == 0)return; // Invisible case
+	if (skeleton->getColor().a == 0)return;
 
 	for (size_t i = 0; i < skeleton->getSlots().size(); ++i)
 	{
@@ -141,12 +142,17 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 			pAttachmentUvs = &pRegionAttachment->getUVs();
 			pIndices = &m_quadIndices;
 
-			/*Fetch texture handle stored in AltasPage*/
 #ifdef SPINE_4_1_OR_LATER
-			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pRegionAttachment->getRegion())->rendererObject)));
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pRegionAttachment->getRegion());
+			isAlphaPremultiplied = pAtlasRegion->page->pma;
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(pAtlasRegion->page->texture)));
 #else
-			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pRegionAttachment->getRendererObject())->page->getRendererObject())));
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pRegionAttachment->getRendererObject());
+#ifdef SPINE_4_0
+			isAlphaPremultiplied = pAtlasRegion->page->pma;
 #endif
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(pAtlasRegion->page->getRendererObject())));
+#endif // SPINE_4_1_OR_LATER
 		}
 		else if (pAttachment->getRTTI().isExactly(spine::MeshAttachment::rtti))
 		{
@@ -164,10 +170,16 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 			pIndices = &pMeshAttachment->getTriangles();
 
 #ifdef SPINE_4_1_OR_LATER
-			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pMeshAttachment->getRegion())->rendererObject)));
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pMeshAttachment->getRegion());
+			isAlphaPremultiplied = pAtlasRegion->page->pma;
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(pAtlasRegion->page->texture)));
 #else
-			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(static_cast<spine::AtlasRegion*>(pMeshAttachment->getRendererObject())->page->getRendererObject())));
+			spine::AtlasRegion* pAtlasRegion = static_cast<spine::AtlasRegion*>(pMeshAttachment->getRendererObject());
+#ifdef SPINE_4_0
+			isAlphaPremultiplied = pAtlasRegion->page->pma;
 #endif
+			iDxLibTexture = (static_cast<int>(reinterpret_cast<unsigned long long>(pAtlasRegion->page->getRendererObject())));
+#endif // SPINE_4_1_OR_LATER
 		}
 		else if (pAttachment->getRTTI().isExactly(spine::ClippingAttachment::rtti))
 		{
@@ -196,7 +208,7 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 
 		const spine::Color& skeletonColor = skeleton->getColor();
 		const spine::Color& slotColor = slot.getColor();
-		spine::Color tint
+		const spine::Color tint
 		(
 			skeletonColor.r * slotColor.r * pAttachmentColor->r,
 			skeletonColor.g * slotColor.g * pAttachmentColor->g,
@@ -204,34 +216,31 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 			skeletonColor.a * slotColor.a * pAttachmentColor->a
 		);
 
-		/*Convert to DxLib's structure*/
-		m_dxLibVertices.clear();
-		for (int ii = 0; ii < pVertices->size(); ii +=2)
+		m_dxLibVertices.setSize(pVertices->size() / 2, {});
+		for (int ii = 0, k = 0; ii < pVertices->size(); ii += 2, ++k)
 		{
-			DxLib::VERTEX2D dxLibVertex{};
+			DxLib::VERTEX2D& dxLibVertex = m_dxLibVertices[k];
+
 			dxLibVertex.pos.x = (*pVertices)[ii];
 			dxLibVertex.pos.y = (*pVertices)[ii + 1LL];
-			dxLibVertex.pos.z = fDepth;
+			dxLibVertex.pos.z = 0.f;
 			dxLibVertex.rhw = 1.f;
-			dxLibVertex.dif.r = (BYTE)(tint.r * 255.f);
-			dxLibVertex.dif.g = (BYTE)(tint.g * 255.f);
-			dxLibVertex.dif.b = (BYTE)(tint.b * 255.f);
-			dxLibVertex.dif.a = (BYTE)(tint.a * 255.f);
+
+			dxLibVertex.dif.r = static_cast<BYTE>(tint.r * 255.f);
+			dxLibVertex.dif.g = static_cast<BYTE>(tint.g * 255.f);
+			dxLibVertex.dif.b = static_cast<BYTE>(tint.b * 255.f);
+			dxLibVertex.dif.a = static_cast<BYTE>(tint.a * 255.f);
+
 			dxLibVertex.u = (*pAttachmentUvs)[ii];
 			dxLibVertex.v = (*pAttachmentUvs)[ii + 1LL];
-			m_dxLibVertices.add(dxLibVertex);
-		}
-		m_dxLibIndices.clear();
-		for (int ii = 0; ii < pIndices->size(); ++ii)
-		{
-			m_dxLibIndices.add((*pIndices)[ii]);
 		}
 
 		int iDxLibBlendMode;
-		switch (slot.getData().getBlendMode())
+		spine::BlendMode spineBlendMode = isToForceBlendModeNormal ? spine::BlendMode::BlendMode_Normal : slot.getData().getBlendMode();
+		switch (spineBlendMode)
 		{
 		case spine::BlendMode_Additive:
-			iDxLibBlendMode = m_bAlphaPremultiplied ? DX_BLENDMODE_PMA_ADD : DX_BLENDMODE_SPINE_ADDITIVE;
+			iDxLibBlendMode = isAlphaPremultiplied ? DX_BLENDMODE_PMA_ADD : DX_BLENDMODE_SPINE_ADDITIVE;
 			break;
 		case spine::BlendMode_Multiply:
 			iDxLibBlendMode = DX_BLENDMODE_CUSTOM;
@@ -240,20 +249,17 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 			iDxLibBlendMode = DX_BLENDMODE_SPINE_SCREEN;
 			break;
 		default:
-			iDxLibBlendMode = m_bAlphaPremultiplied ? DX_BLENDMODE_PMA_ALPHA : DX_BLENDMODE_SPINE_NORMAL;
+			iDxLibBlendMode = isAlphaPremultiplied ? DX_BLENDMODE_PMA_ALPHA : DX_BLENDMODE_SPINE_NORMAL;
 			break;
 		}
-		if (m_bForceBlendModeNormal)
-		{
-			iDxLibBlendMode = m_bAlphaPremultiplied ? DX_BLENDMODE_PMA_ALPHA : DX_BLENDMODE_SPINE_NORMAL;
-		}
+
 		DxLib::SetDrawBlendMode(iDxLibBlendMode, 255);
 		DxLib::DrawPolygonIndexed2D
 		(
 			m_dxLibVertices.buffer(),
 			static_cast<int>(m_dxLibVertices.size()),
-			m_dxLibIndices.buffer(),
-			static_cast<int>(m_dxLibIndices.size() / 3),
+			pIndices->buffer(),
+			static_cast<int>(pIndices->size() / 3),
 			iDxLibTexture, TRUE
 		);
 		m_clipper.clipEnd(slot);
@@ -261,24 +267,35 @@ void CDxLibSpineDrawer::Draw(float fDepth)
 	m_clipper.clipEnd();
 }
 
-void CDxLibSpineDrawer::SetLeaveOutList(spine::Vector<spine::String>& list)
+void CDxLibSpineDrawable::SetLeaveOutList(spine::Vector<spine::String>& list)
 {
 	/*There are some slots having mask or nuisance effect; exclude them from rendering.*/
-	m_leaveOutList.clear();
-	for (size_t i = 0; i < list.size(); ++i)
-	{
-		m_leaveOutList.add(list[i].buffer());
-	}
+	m_leaveOutList.clearAndAddAll(list);
 }
 
-bool CDxLibSpineDrawer::IsToBeLeftOut(const spine::String& slotName)
+DxLib::FLOAT4 CDxLibSpineDrawable::GetBoundingBox() const
 {
-	/*The comparison method depends on what should be excluded; the precise matching or just containing.*/
-	for (size_t i = 0; i < m_leaveOutList.size(); ++i)
+	DxLib::FLOAT4 boundingBox{};
+
+	if (skeleton != nullptr)
 	{
-		if (strcmp(slotName.buffer(), m_leaveOutList[i].buffer()) == 0)return true;
+		spine::Vector<float> tempVertices;
+		skeleton->getBounds(boundingBox.x, boundingBox.y, boundingBox.z, boundingBox.w, tempVertices);
 	}
-	return false;
+
+	return boundingBox;
+}
+
+bool CDxLibSpineDrawable::IsToBeLeftOut(const spine::String& slotName)
+{
+	if (m_pLeaveOutCallback != nullptr)
+	{
+		return m_pLeaveOutCallback(slotName.buffer(), slotName.length());
+	}
+	else
+	{
+		return m_leaveOutList.contains(slotName);
+	}
 }
 
 void CDxLibTextureLoader::load(spine::AtlasPage& page, const spine::String& path)
@@ -287,15 +304,8 @@ void CDxLibTextureLoader::load(spine::AtlasPage& page, const spine::String& path
 	const auto WidenPath = [&path]()
 		-> spine::Vector<wchar_t>
 		{
-			/*DxLib sets the default char set if it were not set, thus there is no error here*/
 			int iCharCode = DxLib::GetUseCharCodeFormat();
 			int iWcharCode = DxLib::Get_wchar_t_CharCodeFormat();
-
-			char* pzLocale = setlocale(LC_ALL, nullptr);
-			if (pzLocale != nullptr && strstr(pzLocale, ".utf8") != nullptr)
-			{
-				iCharCode = 65001;
-			}
 
 			spine::Vector<wchar_t> vBuffer;
 			vBuffer.setSize(path.length() * sizeof(wchar_t), L'\0');

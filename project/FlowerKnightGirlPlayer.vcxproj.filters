@@ -5,12 +5,6 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
-    <Filter Include="Source Files\deps">
-      <UniqueIdentifier>{cb0f79b0-7881-49fb-b77a-b105cca8a8fd}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\deps\spine-cpp">
-      <UniqueIdentifier>{69d7e42b-45c2-4bbd-9cfd-acbafbee6cd2}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Header Files">
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
@@ -19,27 +13,51 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\dxlib_spine_cpp">
+      <UniqueIdentifier>{0e8bcad0-1615-4c2c-b611-27dab956a9d2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\dxlib_spine_cpp">
+      <UniqueIdentifier>{e01cd70f-882f-45ff-80f4-18e539745638}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\src\main.cpp">
+    <ClCompile Include="..\src\dxlib_spine_cpp\dxlib_spine.cpp">
+      <Filter>Source Files\dxlib_spine_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dxlib_spine_cpp\dxlib_spine_player.cpp">
+      <Filter>Source Files\dxlib_spine_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dxlib_spine_cpp\spine_loader.cpp">
+      <Filter>Source Files\dxlib_spine_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dxlib_spine_cpp\spine_player.cpp">
+      <Filter>Source Files\dxlib_spine_cpp</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\dxlib_clock.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\dxlib_spine.cpp">
+    <ClCompile Include="..\src\dxlib_init.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\dxlib_spine_player.cpp">
+    <ClCompile Include="..\src\dxlib_text_writer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\fkg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\fkg_scene_player.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\main_window.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\spine_loader.cpp">
+    <ClCompile Include="..\src\media_setting_dialogue.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\text_utility.cpp">
+    <ClCompile Include="..\src\mf_media_player.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\src\win_dialogue.cpp">
@@ -51,231 +69,57 @@
     <ClCompile Include="..\src\win_text.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Animation.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\AnimationState.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\AnimationStateData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Atlas.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\AtlasAttachmentLoader.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Attachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\AttachmentLoader.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\AttachmentTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Bone.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\BoneData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\BoundingBoxAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\ClippingAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\ColorTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\ConstraintData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\CurveTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\DeformTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\DrawOrderTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Event.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\EventData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\EventTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Extension.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\IkConstraint.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\IkConstraintData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\IkConstraintTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Json.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\LinkedMesh.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\MathUtil.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\MeshAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PathAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PathConstraint.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PathConstraintData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PathConstraintMixTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PathConstraintPositionTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PathConstraintSpacingTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\PointAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\RegionAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\RotateTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\RTTI.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\ScaleTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\ShearTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Skeleton.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SkeletonBinary.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SkeletonBounds.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SkeletonClipping.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SkeletonData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SkeletonJson.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Skin.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Slot.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SlotData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\SpineObject.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\TextureLoader.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Timeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\TransformConstraint.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\TransformConstraintData.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\TransformConstraintTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\TranslateTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Triangulator.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\TwoColorTimeline.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\Updatable.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\VertexAttachment.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\deps\spine-cpp\src\spine\VertexEffect.cpp">
-      <Filter>Source Files\deps\spine-cpp</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\dxlib_text_writer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\dxlib_midway.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\dxlib_still_image_drawer.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\mf_media_player.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\media_setting_dialogue.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\win_image.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\dxlib_init.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="..\src\dxlib_clock.cpp">
+    <ClCompile Include="..\src\win_support.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\src\dxlib_spine_cpp\dxlib_spine.h">
+      <Filter>Header Files\dxlib_spine_cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dxlib_spine_cpp\dxlib_spine_player.h">
+      <Filter>Header Files\dxlib_spine_cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dxlib_spine_cpp\spine_loader.h">
+      <Filter>Header Files\dxlib_spine_cpp</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dxlib_spine_cpp\spine_player.h">
+      <Filter>Header Files\dxlib_spine_cpp</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\adv.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\dxlib_spine.h">
+    <ClInclude Include="..\src\dxlib_clock.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\dxlib_spine_player.h">
+    <ClInclude Include="..\src\dxlib_handle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dxlib_init.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\dxlib_text_writer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\fkg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\fkg_scene_player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\framework.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="..\src\main_window.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\spine_loader.h">
+    <ClInclude Include="..\src\media_setting_dialogue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\mf_media_player.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\path_utility.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\src\text_utility.h">
@@ -290,34 +134,7 @@
     <ClInclude Include="..\src\win_text.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\framework.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\dxlib_text_writer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\dxlib_midway.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\dxlib_still_image_drawer.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\mf_media_player.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\media_setting_dialogue.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\win_image.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\image_frame.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\dxlib_init.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\dxlib_clock.h">
+    <ClInclude Include="..\src\win_support.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

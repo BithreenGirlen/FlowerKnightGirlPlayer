@@ -5,22 +5,25 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 
 #include "dxlib_init.h"
-#include "dxlib_midway.h"
-#include "dxlib_clock.h"
-#include "mf_media_player.h"
+#include "fkg_scene_player.h"
 
 class CMainWindow
 {
 public:
 	CMainWindow();
 	~CMainWindow();
-	bool Create(HINSTANCE hInstance, const wchar_t* pwzWindowName);
+
+	bool Create(HINSTANCE hInstance, const wchar_t* pwzWindowName = nullptr, HICON hIcon = nullptr);
 	int MessageLoop();
-	HWND GetHwnd()const { return m_hWnd;}
+
+	HWND GetHwnd()const { return m_hWnd; }
 private:
-	const wchar_t* m_swzClassName = L"FKG player window";
+	const wchar_t* m_pwzClassName = L"FKG player window";
+	const wchar_t* m_pwzDefaultWindowName = L"FKG player";
+
 	HINSTANCE m_hInstance = nullptr;
 	HWND m_hWnd = nullptr;
 
@@ -30,80 +33,62 @@ private:
 	LRESULT OnDestroy();
 	LRESULT OnClose();
 	LRESULT OnPaint();
-	LRESULT OnSize();
+	LRESULT OnSize(WPARAM wParam, LPARAM lParam);
+	LRESULT OnKeyDown(WPARAM wParam, LPARAM lParam);
 	LRESULT OnKeyUp(WPARAM wParam, LPARAM lParam);
 	LRESULT OnCommand(WPARAM wParam, LPARAM lParam);
-	LRESULT OnTimer(WPARAM wParam);
+	LRESULT OnMouseMove(WPARAM wParam, LPARAM lParam);
 	LRESULT OnMouseWheel(WPARAM wParam, LPARAM lParam);
 	LRESULT OnLButtonDown(WPARAM wParam, LPARAM lParam);
 	LRESULT OnLButtonUp(WPARAM wParam, LPARAM lParam);
+	LRESULT OnRButtonUp(WPARAM wParam, LPARAM lParam);
 	LRESULT OnMButtonUp(WPARAM wParam, LPARAM lParam);
 
 	enum Menu
 	{
-		kSelectFile = 1, kCheckCommentary,
-		kAudioSetting
+		kOpenFile = 1,
+		kAudioSetting,
+		kSyncImage,
+		kLabelStartIndex
 	};
 	enum MenuBar
 	{
-		kFolder, kAduio,
+		kFile, kAudio, kImage
 	};
-	enum EventMessage
-	{
-		kAudioPlayer = WM_USER + 1,
-	};
-	enum Timer
-	{
-		kText = 1,
-	};
-	POINT m_CursorPos{};
-	bool m_bSpeedHavingChanged = false;
-	bool m_bLeftDowned = false;
 
 	HMENU m_hMenuBar = nullptr;
-	bool m_bBarHidden = false;
-	bool m_bTransparent = false;
+	bool m_isFramelessWindow = false;
 
-	bool m_bWebpSupported = false;
-
-	std::vector<std::wstring> m_textFiles;
-	size_t m_nTextFilesIndex = 0;
-
-	float m_fDelta = 1 / 60.f;
+	POINT m_lastCursorPos{};
+	bool m_wasLeftCombinated = false;
+	bool m_wasLeftPressed = false;
+	bool m_hasLeftBeenDragged = false;
+	bool m_wasRightCombinated = false;
 
 	void InitialiseMenuBar();
 
-	void MenuOnSelectFile();
+	void MenuOnOpenFile();
+
+	void KeyOnNextFile();
+	void KeyOnForeFile();
+
 	void MenuOnAudioSetting();
 
-	void KeyUpOnNextFile();
-	void KeyUpOnForeFile();
+	void MenuOnSyncImage();
 
-	void ChangeWindowTitle(const wchar_t* pwzTitle);
-	void SwitchWindowMode();
+	std::unique_ptr<SDxLibInit> m_pDxLibInit;
+	std::unique_ptr<CFkgScenePlayer> m_pScenePlayer;
 
-	bool SetupScenario(const wchar_t* pwzFilePath);
-	void ClearTextFilePathsInfo();
-	void ClearTextData();
+	std::vector<std::wstring> m_scriptFilePaths;
+	size_t m_nScriptFilePathIndex = 0;
 
-	void UpdateDrawingInterval();
-	void CheckWebpSupport();
+	bool SetupScenario(const std::wstring& wstrFolderPath);
+	void JumpToLabel(size_t nIndex);
 
-	SDxLibInit* m_pDxLibInit = nullptr;
-	CDxLibMidway* m_pDxLibMidway = nullptr;
-	CMfMediaPlayer* m_pMfMediaPlayer = nullptr;
+	void ToggleWindowBorderStyle();
+	bool SetMenuCheckState(unsigned int uiMenuIndex, unsigned int uiItemIndex, bool checked) const;
 
-	std::vector<adv::TextDatum> m_textData;
-	size_t m_nTextIndex = 0;
-
-	void ShiftText(bool bForward);
-	void UpdateText();
-	void AutoTexting();
-
-	CDxLibClock m_textClock;
-	void CheckTimer();
-
-	void OnAudioPlayerEvent(unsigned long ulEvent);
+	void ResizeWindow();
 };
 
 #endif //MAIN_WINDOW_H_

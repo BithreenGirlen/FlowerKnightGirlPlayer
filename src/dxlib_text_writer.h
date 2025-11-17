@@ -6,9 +6,11 @@ class CDxLibTextWriter
 public:
 	CDxLibTextWriter();
 	~CDxLibTextWriter();
+
 	bool SetFont(const wchar_t* pwzFontFileName, int iFontSize, bool bBold, bool bItalic);
 	void Draw(const wchar_t* pwzText, unsigned long ulTextLength, int iPosX = 0, int iPosY = 0);
-	void SwitchTextColour();
+
+	void ToggleTextColour();
 private:
 	int m_iFontHandle = -1;
 

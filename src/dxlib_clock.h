@@ -10,9 +10,9 @@ public:
 	float GetElapsedTime();
 	void Restart();
 private:
-	long long m_nLastCounter{};
+	unsigned long long m_nLastCounter{};
 
-	long long GetNowCounter();
+	unsigned long long GetNowCounter();
 };
 
 #endif // !DXLIB_CLOCK_H_
