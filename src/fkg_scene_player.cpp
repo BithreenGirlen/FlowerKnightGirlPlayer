@@ -174,7 +174,7 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 					const int iChannel = iPitch / iWidth;
 					const unsigned char* pPixels = static_cast<const unsigned char*>(DxLib::GetImageAddressSoftImage(softImageHandle.Get()));
 
-					const float fScale = static_cast<float>(kDefaultHeight) / iHeight;
+					const float fScale = ::ceil(static_cast<float>(kDefaultHeight) / iHeight);
 					const int iDstWidth = static_cast<int>(iWidth * fScale);
 					const int iDstHeight = static_cast<int>(iHeight * fScale);
 					const int iDstPitch = static_cast<int>(iPitch * fScale);
