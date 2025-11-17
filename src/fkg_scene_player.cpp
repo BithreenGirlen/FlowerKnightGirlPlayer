@@ -1,10 +1,8 @@
 ﻿
-#define AVIR_INTERPOLATION
 
-#ifdef CUBIC_INTERPOLATION
-/* Define __int64 prior to the definition of LONG_PTR in "DxDataTypeWin.h" */
-#include <intsafe.h>
-#endif
+/* Rely on WIC for Bicubic interpolation */
+#include <atlbase.h>
+#include <wincodec.h>
 
 #include "fkg_scene_player.h"
 
@@ -12,19 +10,38 @@
 #include "win_text.h"
 #include "win_support.h"
 
-#if defined(AVIR_INTERPOLATION)
-	#include "deps/avir-3.1/avir.h"
-#elif defined(LANCZOS_INTERPOLATION)
-	#include "deps/avir-3.1/lancir.h"
-#elif defined(CUBIC_INTERPOLATION)
-/* Implementation via WIC */
-	#include <atlbase.h>
-	#include <wincodec.h>
-	#pragma comment (lib, "Windowscodecs.lib")
+/* AVIR interpolation */
+#include "deps/avir-3.1/avir.h"
+/* Lanczos interpolation */
+#include "deps/avir-3.1/lancir.h"
+
+#pragma comment (lib, "Windowscodecs.lib")
+
+static int LoadRemovingAlphaFromRGBA(const int srcWidth, const int srcHeight, const int srcPitch, const unsigned char* const srcPixels)
+{
+	size_t nSrcSize = static_cast<size_t>(srcPitch * srcHeight);
+	std::vector<unsigned char> rgbArray(nSrcSize * 3 / 4);
+
+	/* RGBA => RGB; A相は破棄 */
+	const unsigned char* pSrc = srcPixels;
+	unsigned char* pDst = rgbArray.data();
+	for (size_t i = 0; i < nSrcSize - 3; i += 4)
+	{
+		*pDst++ = *pSrc++;
+		*pDst++ = *pSrc++;
+		*pDst++ = *pSrc++;
+		pSrc++;
+	}
+	int iPitch = srcPitch * 3 / 4;
+	int iHandle = DxLib::CreateGraph(srcWidth, srcHeight, iPitch, rgbArray.data());
+
+	return iHandle;
+}
+
 namespace wic
 {
 	static bool ResizeImage(
-		const unsigned char* const srcPixels, const int srcWidth, const int srcHeight, int srcPitch,
+		const unsigned char* const srcPixels, const int srcWidth, const int srcHeight, const int srcPitch,
 		unsigned char* const dstPixels, const int dstWidth, const int dstHeight, const int dstPitch,
 		const int channel)
 	{
@@ -34,9 +51,9 @@ namespace wic
 		HRESULT hr = ::CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&pWicImageFactory));
 		if (FAILED(hr))return false;
 
-		REFWICPixelFormatGUID pixelFormat = channel == 4 ? GUID_WICPixelFormat32bpp4Channels : GUID_WICPixelFormat24bpp3Channels;
+		REFWICPixelFormatGUID pixelFormat = channel == 4 ? GUID_WICPixelFormat32bpp3ChannelsAlpha : GUID_WICPixelFormat24bpp3Channels;
 		CComPtr<IWICBitmap> pSrcWicBitmap;
-		hr = pWicImageFactory->CreateBitmapFromMemory(srcWidth, srcHeight, pixelFormat, srcPitch, srcPitch * srcHeight * channel, const_cast<BYTE*>(srcPixels), &pSrcWicBitmap);
+		hr = pWicImageFactory->CreateBitmapFromMemory(srcWidth, srcHeight, pixelFormat, srcPitch, srcPitch * srcHeight, const_cast<BYTE*>(srcPixels), &pSrcWicBitmap);
 		if (FAILED(hr))return false;
 
 		CComPtr<IWICBitmapScaler> pWicBmpScaler;
@@ -63,36 +80,35 @@ namespace wic
 		hr = pWicBitmapLock->GetStride(&dstStride);
 		if (FAILED(hr))return false;
 
-		if (dstStride == dstPitch)
+		/* 元々のα相の有無・形式に関わらず、BGRAとなる。 */
+		if (dstPitch == dstStride)
 		{
-			hr = pDstWicBitmap->CopyPixels(nullptr, dstStride, dstStride * uiDstHeight, dstPixels);
+			CComPtr<IWICFormatConverter> pWicFormatConverter;
+			hr = pWicImageFactory->CreateFormatConverter(&pWicFormatConverter);
 			if (FAILED(hr))return false;
+
+			/* BGRA => RGBA */
+			hr = pWicFormatConverter->Initialize(pDstWicBitmap, GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
+			if (FAILED(hr))return false;
+
+			hr = pWicFormatConverter->CopyPixels(nullptr, dstStride, dstStride * uiDstHeight, dstPixels);
 		}
 		else
 		{
-			/* 元々存在しなかったα成分が増える上、形式も変わるので一旦別バッファに書き込む */
-			std::vector<unsigned char> rgbaArray(dstStride * uiDstHeight);
-			hr = pDstWicBitmap->CopyPixels(nullptr, dstStride, dstStride * uiDstHeight, rgbaArray.data());
+			CComPtr<IWICFormatConverter> pWicFormatConverter;
+			hr = pWicImageFactory->CreateFormatConverter(&pWicFormatConverter);
 			if (FAILED(hr))return false;
 
-			/* BGRA => RGB; A情報は破棄 */
-			const unsigned char* pSrc = rgbaArray.data();
-			unsigned char* pDst = dstPixels;
-			for (size_t i = 0; i < rgbaArray.size() - 3; i += 4)
-			{
-				*pDst++ = *(pSrc + 2);
-				*pDst++ = *(pSrc + 1);
-				*pDst++ = *pSrc;
-				pSrc += 4;
-			}
+			/* BGRA => RGB */
+			hr = pWicFormatConverter->Initialize(pDstWicBitmap, GUID_WICPixelFormat24bppRGB, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom);
+			if (FAILED(hr))return false;
+
+			hr = pWicFormatConverter->CopyPixels(nullptr, dstPitch, dstPitch * uiDstHeight, dstPixels);
 		}
 
 		return true;
 	}
 }
-#else 
-	#define NO_INTERPOLATION
-#endif
 
 CFkgScenePlayer::CFkgScenePlayer()
 {
@@ -119,77 +135,88 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 	{
 		if (!imageFileDatum.bAnimation)
 		{
-#ifdef NO_INTERPOLATION
-			/* 補間無しでGPUに転送 */
-			int iWidth = 0;
-			int iHeight = 0;
-			float fScale = 1.f;
-			if (DxLib::GetImageSize_File(imageFileDatum.wstrFilePath.c_str(), &iWidth, &iHeight) != -1)
+			if (m_filter == FilterOnLoading::None)
 			{
-				fScale = static_cast<float>(kDefaultHeight) / iHeight;
-			}
+				/* 補間無しでGPUに転送 */
+				int iWidth = 0;
+				int iHeight = 0;
+				float fScale = 1.f;
+				if (DxLib::GetImageSize_File(imageFileDatum.wstrFilePath.c_str(), &iWidth, &iHeight) != -1)
+				{
+					fScale = static_cast<float>(kDefaultHeight) / iHeight;
+				}
 
-			DxLibImageHandle dxLibImageHandle(DxLib::LoadGraph(imageFileDatum.wstrFilePath.c_str()));
-			if (dxLibImageHandle.Get() != -1)
-			{
-				m_imageHandles.push_back(std::move(dxLibImageHandle));
-
-				SImageDatum imageDatum;
-				imageDatum.bAnimation = false;
-				imageDatum.stillParams.usIndex = static_cast<unsigned short>(m_imageHandles.size() - 1);
-				imageDatum.stillParams.fScale = fScale;
-
-				m_imageData.push_back(std::move(imageDatum));
-			}
-#else
-			/* 一旦CPU上で拡大処理を施した上でGPUに転送 */
-			using DxLibSoftwareImageHandle = DxLibHandle<&DxLib::DeleteSoftImage>;
-			DxLibSoftwareImageHandle softImageHandle(DxLib::LoadSoftImage(imageFileDatum.wstrFilePath.c_str()));
-			if (!softImageHandle.Empty())
-			{
-				int iWidth = 0, iHeight = 0;
-				int iRet = DxLib::GetSoftImageSize(softImageHandle.Get(), &iWidth, &iHeight);
-				if (iRet == -1)continue;
-
-				const int iPitch = DxLib::GetPitchSoftImage(softImageHandle.Get());
-				const int iChannel = iPitch / iWidth;
-				const unsigned char* pPixels = static_cast<const unsigned char*>(DxLib::GetImageAddressSoftImage(softImageHandle.Get()));
-
-				const float fScale = static_cast<float>(kDefaultHeight) / iHeight;
-				const int iDstWidth = static_cast<int>(iWidth * fScale);
-				const int iDstHeight = static_cast<int>(iHeight * fScale);
-				const int iDstPitch = static_cast<int>(iPitch * fScale);
-				const size_t dstBufSize = static_cast<size_t>(iDstWidth * iDstHeight * iChannel);
-				std::vector<unsigned char> dstBuffer(dstBufSize);
-
-#if defined(AVIR_INTERPOLATION)
-				const avir::CImageResizerParamsHigh params;
-				avir::CImageResizer<> avirImageResizer(8, 0, params);
-				avir::CImageResizerVars vars;
-				vars.UseSRGBGamma = true;
-				avirImageResizer.resizeImage(pPixels, iWidth, iHeight, iPitch, dstBuffer.data(), iDstWidth, iDstHeight, iChannel, 0, &vars);
-#elif defined(LANCZOS_INTERPOLATION)
-				avir::CLancIR lancIr;
-				lancIr.resizeImage(pPixels, iWidth, iHeight, iPitch, dstBuffer.data(), iDstWidth, iDstHeight, iDstPitch, iChannel);
-#elif defined(CUBIC_INTERPOLATION)
-				wic::ResizeImage(pPixels, iWidth, iHeight, iPitch, dstBuffer.data(), iDstWidth, iDstHeight, iDstPitch, iChannel);
-#endif	
-				softImageHandle.Reset();
-
-				DxLibImageHandle dxLibImageHandle(DxLib::CreateGraph(iDstWidth, iDstHeight, iDstPitch, dstBuffer.data()));
-				if (!dxLibImageHandle.Empty())
+				DxLibImageHandle dxLibImageHandle(DxLib::LoadGraph(imageFileDatum.wstrFilePath.c_str()));
+				if (dxLibImageHandle.Get() != -1)
 				{
 					m_imageHandles.push_back(std::move(dxLibImageHandle));
 
 					SImageDatum imageDatum;
 					imageDatum.bAnimation = false;
 					imageDatum.stillParams.usIndex = static_cast<unsigned short>(m_imageHandles.size() - 1);
-					imageDatum.stillParams.fScale = 1.f;
+					imageDatum.stillParams.fScale = fScale;
 
 					m_imageData.push_back(std::move(imageDatum));
 				}
 			}
-#endif
+			else
+			{
+				/* 一旦CPU上で拡大処理を施した上でGPUに転送 */
+				using DxLibSoftwareImageHandle = DxLibHandle<&DxLib::DeleteSoftImage>;
+				DxLibSoftwareImageHandle softImageHandle(DxLib::LoadSoftImage(imageFileDatum.wstrFilePath.c_str()));
+				if (!softImageHandle.Empty())
+				{
+					int iWidth = 0, iHeight = 0;
+					int iRet = DxLib::GetSoftImageSize(softImageHandle.Get(), &iWidth, &iHeight);
+					if (iRet == -1)continue;
+
+					const int iPitch = DxLib::GetPitchSoftImage(softImageHandle.Get());
+					const int iChannel = iPitch / iWidth;
+					const unsigned char* pPixels = static_cast<const unsigned char*>(DxLib::GetImageAddressSoftImage(softImageHandle.Get()));
+
+					const float fScale = static_cast<float>(kDefaultHeight) / iHeight;
+					const int iDstWidth = static_cast<int>(iWidth * fScale);
+					const int iDstHeight = static_cast<int>(iHeight * fScale);
+					const int iDstPitch = static_cast<int>(iPitch * fScale);
+					const size_t dstBufSize = static_cast<size_t>(iDstWidth * iDstHeight * iChannel);
+					std::vector<unsigned char> dstBuffer(dstBufSize);
+
+					if (m_filter == FilterOnLoading::Avir)
+					{
+						const avir::CImageResizerParamsHigh params;
+						avir::CImageResizer<> avirImageResizer(8, 0, params);
+						avir::CImageResizerVars vars;
+						vars.UseSRGBGamma = true;
+						avirImageResizer.resizeImage(pPixels, iWidth, iHeight, iPitch, dstBuffer.data(), iDstWidth, iDstHeight, iChannel, 0, &vars);
+					}
+					else if (m_filter == FilterOnLoading::Lanczos)
+					{
+						avir::CLancIR lancIr;
+						lancIr.resizeImage(pPixels, iWidth, iHeight, iPitch, dstBuffer.data(), iDstWidth, iDstHeight, iDstPitch, iChannel);
+					}
+					else if (m_filter == FilterOnLoading::Cubic)
+					{
+						wic::ResizeImage(pPixels, iWidth, iHeight, iPitch, dstBuffer.data(), iDstWidth, iDstHeight, iDstPitch, iChannel);
+					}
+					softImageHandle.Reset();
+
+					DxLibImageHandle dxLibImageHandle(
+						iChannel == 3 ? 
+						DxLib::CreateGraph(iDstWidth, iDstHeight, iDstPitch, dstBuffer.data()) : 
+						LoadRemovingAlphaFromRGBA(iDstWidth, iDstHeight, iDstPitch, dstBuffer.data()));
+					if (!dxLibImageHandle.Empty())
+					{
+						m_imageHandles.push_back(std::move(dxLibImageHandle));
+
+						SImageDatum imageDatum;
+						imageDatum.bAnimation = false;
+						imageDatum.stillParams.usIndex = static_cast<unsigned short>(m_imageHandles.size() - 1);
+						imageDatum.stillParams.fScale = 1.f;
+
+						m_imageData.push_back(std::move(imageDatum));
+					}
+				}
+			}
 		}
 		else
 		{
@@ -214,6 +241,7 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 				if (bRet)
 				{
 					m_dxLibSpinePlayer.PremultiplyAlpha(false);
+					m_dxLibSpinePlayer.ForceBlendModeNormal(true);
 				}
 			}
 			else
@@ -421,6 +449,14 @@ bool CFkgScenePlayer::JumpToLabel(size_t nLabelIndex)
 const CMfMediaPlayer* CFkgScenePlayer::GetAudioPlayer() const
 {
 	return m_pAudioPlayer.get();
+}
+void CFkgScenePlayer::SetFilterOnLoading(FilterOnLoading filter)
+{
+	m_filter = filter;
+}
+CFkgScenePlayer::FilterOnLoading CFkgScenePlayer::GetFilterMethod() const
+{
+	return m_filter;
 }
 /*台本データ消去*/
 void CFkgScenePlayer::ClearScenarioData()

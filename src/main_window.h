@@ -49,7 +49,7 @@ private:
 		enum
 		{
 			kOpenFile = 1,
-			kAudioSetting,
+			kAudioSetting, kFilterNone, kFilterAvir, kFilterLanczos, kFilterCubic,
 			kSyncImage,
 			kLabelStartIndex
 		};
@@ -93,6 +93,7 @@ private:
 
 	void ToggleWindowBorderStyle();
 	bool SetMenuCheckState(unsigned int uiMenuIndex, unsigned int uiItemIndex, bool checked) const;
+	bool UpdateFilterState(unsigned int uiMenuIndexToCheck) const;
 
 	void ResizeWindow();
 };

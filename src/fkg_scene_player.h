@@ -48,6 +48,17 @@ public:
 	bool JumpToLabel(size_t nLabelIndex);
 
 	const CMfMediaPlayer* GetAudioPlayer() const;
+
+	enum class FilterOnLoading
+	{
+		None,
+		Avir,
+		Lanczos,
+		Cubic
+	};
+
+	void SetFilterOnLoading(FilterOnLoading filter);
+	FilterOnLoading GetFilterMethod() const;
 private:
 	using DxLibImageHandle = DxLibHandle<&DxLib::DeleteGraph>;
 	static constexpr int kDefaultWidth = 1920;
@@ -76,6 +87,7 @@ private:
 	};
 
 	bool m_isWebpSupported = false;
+	FilterOnLoading m_filter = FilterOnLoading::Cubic;
 
 	std::vector<adv::TextDatum> m_textData;
 	std::vector<SImageDatum> m_imageData;

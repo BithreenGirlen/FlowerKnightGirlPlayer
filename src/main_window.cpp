@@ -163,6 +163,7 @@ LRESULT CMainWindow::OnCreate(HWND hWnd)
 	m_hWnd = hWnd;
 
 	InitialiseMenuBar();
+	UpdateFilterState(Menu::kFilterCubic);
 
 	m_pDxLibInit = std::make_unique<SDxLibInit>(m_hWnd);
 
@@ -298,6 +299,12 @@ LRESULT CMainWindow::OnCommand(WPARAM wParam, LPARAM lParam)
 			break;
 		case Menu::kAudioSetting:
 			MenuOnAudioSetting();
+			break;
+		case Menu::kFilterNone:
+		case Menu::kFilterAvir:
+		case Menu::kFilterLanczos:
+		case Menu::kFilterCubic:
+			UpdateFilterState(wmId);
 			break;
 		case Menu::kSyncImage:
 			MenuOnSyncImage();
@@ -498,6 +505,14 @@ void CMainWindow::InitialiseMenuBar()
 			{0, L"Setting", window_menu::MenuBuilder(
 				{
 					{Menu::kAudioSetting, L"Audio"},
+					{0, L"Filter", window_menu::MenuBuilder(
+						{
+							{Menu::kFilterNone, L"None"},
+							{Menu::kFilterAvir, L"Avir"},
+							{Menu::kFilterLanczos, L"Lanczos"},
+							{Menu::kFilterCubic, L"Cubic"}
+						}).Get()
+					}
 				}).Get()
 			},
 			{0, L"Image", window_menu::MenuBuilder(
@@ -641,6 +656,43 @@ bool CMainWindow::SetMenuCheckState(unsigned int uiMenuIndex, unsigned int uiIte
 		{
 			DWORD ulRet = ::CheckMenuItem(hMenu, uiItemIndex, checked ? MF_CHECKED : MF_UNCHECKED);
 			return ulRet != (DWORD)-1;
+		}
+	}
+
+	return false;
+}
+bool CMainWindow::UpdateFilterState(unsigned int uiMenuIndexToCheck) const
+{
+	static constexpr unsigned int filterMethods[] = { Menu::kFilterNone, Menu::kFilterAvir, Menu::kFilterLanczos, Menu::kFilterCubic };
+	static constexpr size_t methodCount = sizeof(filterMethods) / sizeof(unsigned int);
+	
+	BOOL iRet = ::CheckMenuRadioItem(m_hMenuBar, filterMethods[0], filterMethods[methodCount - 1], uiMenuIndexToCheck, MF_BYCOMMAND);
+	if (iRet > 0)
+	{
+		if (m_pScenePlayer.get() != nullptr)
+		{
+			CFkgScenePlayer::FilterOnLoading filter = CFkgScenePlayer::FilterOnLoading::None;
+			switch (uiMenuIndexToCheck)
+			{
+			case Menu::kFilterNone:
+				filter = CFkgScenePlayer::FilterOnLoading::None;
+				break;
+			case Menu::kFilterAvir:
+				filter = CFkgScenePlayer::FilterOnLoading::Avir;
+				break;
+			case Menu::kFilterLanczos:
+				filter = CFkgScenePlayer::FilterOnLoading::Lanczos;
+				break;
+			case Menu::kFilterCubic:
+				filter = CFkgScenePlayer::FilterOnLoading::Cubic;
+				break;
+			default:
+				break;
+			}
+
+			m_pScenePlayer->SetFilterOnLoading(filter);
+
+			return true;
 		}
 	}
 
