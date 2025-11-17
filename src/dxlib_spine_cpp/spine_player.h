@@ -101,6 +101,8 @@ public:
 
 	float GetTimeScale() const noexcept;
 	void SetTimeScale(float fTimeScale);
+
+	void SetZoom(float fZoom);
 protected:
 	static constexpr float kfScalePortion = 0.025f;
 	static constexpr float kfMinScale = 0.15f;

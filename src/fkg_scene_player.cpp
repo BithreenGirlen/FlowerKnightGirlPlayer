@@ -170,7 +170,13 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 					int iRet = DxLib::GetSoftImageSize(softImageHandle.Get(), &iWidth, &iHeight);
 					if (iRet == -1)continue;
 
-					const int iPitch = DxLib::GetPitchSoftImage(softImageHandle.Get());
+					int iPitch = DxLib::GetPitchSoftImage(softImageHandle.Get());
+					if (iPitch == iWidth) // パレット画像
+					{
+						/* 最初からRGBAで読み込んでもよいが、RGB形式が一番多く、次いでRGBA、パレットはごく少ないので再読み込みで。*/
+						softImageHandle = DxLib::LoadARGB8ColorSoftImage(imageFileDatum.wstrFilePath.c_str());
+						iPitch = DxLib::GetPitchSoftImage(softImageHandle.Get());
+					}
 					const int iChannel = iPitch / iWidth;
 					const unsigned char* pPixels = static_cast<const unsigned char*>(DxLib::GetImageAddressSoftImage(softImageHandle.Get()));
 
@@ -226,7 +232,6 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 			if (!imageFileDatum.wstrFilePath.empty())
 			{
 				/* ファイル情報 */
-				if (m_dxLibSpinePlayer.HasSpineBeenLoaded())continue;
 
 				std::vector<std::string> atlasPaths;
 				std::vector<std::string> skelPaths;
@@ -247,7 +252,6 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 			else
 			{
 				/* 動作情報 */
-				if (!m_dxLibSpinePlayer.HasSpineBeenLoaded())continue;
 
 				const auto& animationNames = m_dxLibSpinePlayer.GetAnimationNames();
 				const auto& iter = std::find(animationNames.begin(), animationNames.end(), imageFileDatum.strData);
@@ -653,7 +657,5 @@ void CFkgScenePlayer::SetTransformMatrixForStill(const DxLibImageHandle& imageHa
 void CFkgScenePlayer::ResetSpinePlayerScale()
 {
 	m_dxLibSpinePlayer.ResetScale();
-#if defined(TO_DO)
 	m_dxLibSpinePlayer.SetZoom(1.05f);
-#endif
 }

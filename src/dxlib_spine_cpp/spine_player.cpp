@@ -638,6 +638,11 @@ void CSpinePlayer::SetTimeScale(float fTimeScale)
 {
 	m_fTimeScale = fTimeScale;
 }
+
+void CSpinePlayer::SetZoom(float fZoom)
+{
+	m_fSkeletonScale = m_fCanvasScale * fZoom;
+}
 /*消去*/
 void CSpinePlayer::ClearDrawables()
 {
