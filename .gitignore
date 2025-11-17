@@ -363,5 +363,6 @@ MigrationBackup/
 FodyWeavers.xsd
 
 **/deps/dxlib
-**/deps/spine-cpp-3.8
+**/deps/spine-cpp-3.8/*
+!**/deps/spine-cpp-*/CMakeLists.txt
 **/deps/avir-3.1
