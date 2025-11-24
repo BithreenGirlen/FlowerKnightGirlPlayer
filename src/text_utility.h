@@ -9,43 +9,39 @@ namespace text_utility
 	template <typename CharType>
 	void TextToLines(const std::basic_string<CharType>& text, std::vector<std::basic_string<CharType>>& lines)
 	{
-		std::basic_string<CharType> temp{};
-		for (auto& c : text)
+		constexpr CharType key[] = { '\r', '\n', '\0' };
+		for (size_t nRead = 0;;)
 		{
-			if (c == CharType('\r') || c == CharType('\n'))
+			size_t nPos = text.find_first_of(key, nRead);
+			if (nPos == std::basic_string<CharType>::npos)
 			{
-				if (!temp.empty())
-				{
-					lines.push_back(temp);
-					temp.clear();
-				}
-				continue;
+				lines.emplace_back(&text[nRead], text.size() - nRead);
+				break;
 			}
-			temp.push_back(c);
-		}
+			size_t nLen = nPos - nRead;
+			if (nLen > 1)
+			{
+				lines.emplace_back(&text[nRead], nLen);
+			}
 
-		if (!temp.empty())
-		{
-			lines.push_back(temp);
+			nRead = nPos + 1;
 		}
 	}
 
 	template <typename CharType>
 	void SplitTextBySeparator(const std::basic_string<CharType>& text, const CharType separator, std::vector<std::basic_string<CharType>>& splits)
 	{
-		for (size_t nRead = 0; nRead < text.size();)
+		for (size_t nRead = 0;;)
 		{
 			size_t nPos = text.find(separator, nRead);
 			if (nPos == std::basic_string<CharType>::npos)
 			{
-				size_t nLen = text.size() - nRead;
-				splits.emplace_back(text.substr(nRead, nLen));
+				splits.emplace_back(&text[nRead], text.size() - nRead);
 				break;
 			}
 
-			size_t nLen = nPos - nRead;
-			splits.emplace_back(text.substr(nRead, nLen));
-			nRead += nLen + 1;
+			splits.emplace_back(&text[nRead], nPos - nRead);
+			nRead = nPos + 1;
 		}
 	}
 
