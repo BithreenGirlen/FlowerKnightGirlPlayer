@@ -56,7 +56,7 @@ namespace fkg
 					}
 					resourceToken.strData += columns[2];
 					if (columns.size() > 3)resourceToken.strFileName = columns[3];
-					resourceTokens.push_back(resourceToken);
+					resourceTokens.push_back(std::move(resourceToken));
 				}
 			}
 			else if (strType == "image")
@@ -65,7 +65,7 @@ namespace fkg
 				{
 					resourceToken.tokenType = TokenType::kImage;
 					resourceToken.strFileName = columns[1];
-					resourceTokens.push_back(resourceToken);
+					resourceTokens.push_back(std::move(resourceToken));
 				}
 			}
 			else if (strType == "spine")
@@ -74,7 +74,7 @@ namespace fkg
 				{
 					resourceToken.tokenType = TokenType::kSpine;
 					resourceToken.strFileName = columns[1];
-					resourceTokens.push_back(resourceToken);
+					resourceTokens.push_back(std::move(resourceToken));
 				}
 			}
 			else if(strType == "spine_play")
@@ -83,7 +83,7 @@ namespace fkg
 				{
 					resourceToken.tokenType = TokenType::kSpinePlay;
 					resourceToken.strData = columns[1];
-					resourceTokens.push_back(resourceToken);
+					resourceTokens.push_back(std::move(resourceToken));
 				}
 			}
 		}
@@ -113,7 +113,7 @@ namespace fkg
 	
 } // namespace fkg
 
-bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::TextDatum>& textData, std::vector<adv::ImageFileDatum> &imageFileData, std::vector<adv::SceneDatum>& sceneData, std::vector<adv::LabelDatum>& labelData)
+bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::TextDatum>& textData, std::vector<adv::ImageFileDatum> &imageFileData, std::wstring& spineFileName, std::vector<adv::SceneDatum>& sceneData, std::vector<adv::LabelDatum>& labelData)
 {
 	std::string strFile = win_filesystem::LoadFileAsString(wstrFilePath.c_str());
 	if (strFile.empty())return false;
@@ -123,11 +123,6 @@ bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::Tex
 	std::vector<fkg::ResourceToken> resourceTokens;
 	PickupResourceTokensFromBook(strFile, resourceTokens);
 
-	/*
-	* Spineファイルと動作情報は別行になっているので、ファイル情報を確認したら減算する。
-	* 設計上、adv::ImageFileDatumとは別の構造体に分けた方がよいかもしれないが…
-	*/
-	long long nImageDatumOffset = 0;
 	std::wstring labelBuffer;
 	for (auto& resourceToken : resourceTokens)
 	{
@@ -146,7 +141,7 @@ bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::Tex
 
 			{
 				adv::SceneDatum sceneDatum;
-				sceneDatum.nImageIndex = imageFileData.empty() ? 0 : imageFileData.size() - 1 + nImageDatumOffset;
+				sceneDatum.nImageIndex = imageFileData.empty() ? 0 : imageFileData.size() - 1;
 				sceneDatum.nTextIndex = textData.size() - 1;
 				sceneData.push_back(std::move(sceneDatum));
 			}
@@ -164,10 +159,7 @@ bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::Tex
 			labelBuffer = win_text::WidenUtf8(path_utility::TruncateFilePath(resourceToken.strFileName));
 			break;
 		case TokenType::kSpine:
-			imageDatum.bAnimation = true;
-			imageDatum.wstrFilePath = RelativePathToAbsoluteFilePath(resourceToken.strFileName);
-			imageFileData.push_back(std::move(imageDatum));
-			nImageDatumOffset = -1;
+			if(spineFileName.empty())spineFileName = RelativePathToAbsoluteFilePath(resourceToken.strFileName);
 			break;
 		case TokenType::kSpinePlay:
 			imageDatum.bAnimation = true;
@@ -176,10 +168,10 @@ bool fkg::LoadScenarioFile(const std::wstring wstrFilePath, std::vector<adv::Tex
 			/* "Finish"と"After"の間には文章が存在しないので、前の紐づけを上書きする。*/
 			if (labelBuffer == L"Finish")
 			{
-				if (sceneData.size() > 3)
+				if (sceneData.size() > 2)
 				{
 					/* 通常位置の1つ手前 */
-					sceneData.back().nImageIndex = imageFileData.size() - 1 + nImageDatumOffset - 1;
+					sceneData.back().nImageIndex = imageFileData.size() - 1 - 1;
 				}
 				labelData.emplace_back(adv::LabelDatum{ labelBuffer, sceneData.size() - 1 });
 				labelBuffer.clear();

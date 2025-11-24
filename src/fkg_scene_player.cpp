@@ -129,7 +129,28 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 	ClearScenarioData();
 
 	std::vector<adv::ImageFileDatum> imageFileData;
-	fkg::LoadScenarioFile(wstrFolderPath, m_textData, imageFileData, m_sceneData, m_labelData);
+	std::wstring spineFileName;
+	fkg::LoadScenarioFile(wstrFolderPath, m_textData, imageFileData, spineFileName, m_sceneData, m_labelData);
+	if (m_isWebpSupported && !spineFileName.empty())
+	{
+		/* Spineファイル情報 */
+
+		std::vector<std::string> atlasPaths;
+		std::vector<std::string> skelPaths;
+
+		std::string strAtlasPath = win_text::NarrowUtf8(spineFileName) + ".atlas";
+		std::string strSkelPath = win_text::NarrowUtf8(spineFileName) + ".json";
+
+		atlasPaths.push_back(std::move(strAtlasPath));
+		skelPaths.push_back(std::move(strSkelPath));
+
+		bool bRet = m_dxLibSpinePlayer.LoadSpineFromFile(atlasPaths, skelPaths, false);
+		if (bRet)
+		{
+			m_dxLibSpinePlayer.PremultiplyAlpha(false);
+			m_dxLibSpinePlayer.ForceBlendModeNormal(true);
+		}
+	}
 
 	for (const auto& imageFileDatum : imageFileData)
 	{
@@ -229,39 +250,16 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 			/* webp非対応の場合、静止画のみの構成とする。 */
 			if (!m_isWebpSupported)continue;
 
-			if (!imageFileDatum.wstrFilePath.empty())
+			/* Spine動作情報 */
+
+			const auto& animationNames = m_dxLibSpinePlayer.GetAnimationNames();
+			const auto& iter = std::find(animationNames.begin(), animationNames.end(), imageFileDatum.strData);
+			if (iter != animationNames.cend())
 			{
-				/* ファイル情報 */
-
-				std::vector<std::string> atlasPaths;
-				std::vector<std::string> skelPaths;
-
-				std::string strAtlasPath = win_text::NarrowUtf8(imageFileDatum.wstrFilePath) + ".atlas";
-				std::string strSkelPath = win_text::NarrowUtf8(imageFileDatum.wstrFilePath) + ".json";
-
-				atlasPaths.push_back(std::move(strAtlasPath));
-				skelPaths.push_back(std::move(strSkelPath));
-
-				bool bRet = m_dxLibSpinePlayer.LoadSpineFromFile(atlasPaths, skelPaths, false);
-				if (bRet)
-				{
-					m_dxLibSpinePlayer.PremultiplyAlpha(false);
-					m_dxLibSpinePlayer.ForceBlendModeNormal(true);
-				}
-			}
-			else
-			{
-				/* 動作情報 */
-
-				const auto& animationNames = m_dxLibSpinePlayer.GetAnimationNames();
-				const auto& iter = std::find(animationNames.begin(), animationNames.end(), imageFileDatum.strData);
-				if (iter != animationNames.cend())
-				{
-					SImageDatum imageDatum;
-					imageDatum.bAnimation = true;
-					imageDatum.animationParams.usIndex = static_cast<unsigned short>(std::distance(animationNames.begin(), iter));
-					m_imageData.push_back(std::move(imageDatum));
-				}
+				SImageDatum imageDatum;
+				imageDatum.bAnimation = true;
+				imageDatum.animationParams.usIndex = static_cast<unsigned short>(std::distance(animationNames.begin(), iter));
+				m_imageData.push_back(std::move(imageDatum));
 			}
 		}
 	}

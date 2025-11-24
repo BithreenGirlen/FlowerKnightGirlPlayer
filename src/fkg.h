@@ -12,6 +12,7 @@ namespace fkg
 		const std::wstring wstrFilePath,
 		std::vector<adv::TextDatum>& textData,
 		std::vector<adv::ImageFileDatum> &imageFileData,
+		std::wstring& spineFileName,
 		std::vector<adv::SceneDatum>& sceneData,
 		std::vector<adv::LabelDatum>& labelData);
 }
