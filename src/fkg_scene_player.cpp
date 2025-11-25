@@ -149,6 +149,22 @@ bool CFkgScenePlayer::ReadScenario(const std::wstring& wstrFolderPath)
 		{
 			m_dxLibSpinePlayer.PremultiplyAlpha(false);
 			m_dxLibSpinePlayer.ForceBlendModeNormal(true);
+			/* There are some slots named like "BG_s50", so compare only the first two characters. */
+			static constexpr const char* const bgSlots[] = { "BG", "bg", "Bg"};
+			for (const auto& bgSlot : bgSlots)
+			{
+				DxLib::FLOAT4 bounding = m_dxLibSpinePlayer.GetCurrentBoundingOfSlot(bgSlot, 2);
+				if (bounding.z != 0.f)
+				{
+					const float& fScale = m_dxLibSpinePlayer.GetSkeletonScale();
+					const auto& offset = m_dxLibSpinePlayer.GetOffset();
+					bounding.x = (bounding.x - offset.x) / 2.f * fScale;
+					bounding.y = (bounding.y + offset.y) / 2.f * fScale;
+					m_dxLibSpinePlayer.SetOffset(bounding.x, bounding.y);
+					m_dxLibSpinePlayer.SetBaseSize(bounding.z, bounding.w);
+					break;
+				}
+			}
 		}
 	}
 
@@ -655,5 +671,7 @@ void CFkgScenePlayer::SetTransformMatrixForStill(const DxLibImageHandle& imageHa
 void CFkgScenePlayer::ResetSpinePlayerScale()
 {
 	m_dxLibSpinePlayer.ResetScale();
-	m_dxLibSpinePlayer.SetSkeletonScale(m_dxLibSpinePlayer.GetCanvasScale() * 1.05f);
+	const auto& skeletonSize = m_dxLibSpinePlayer.GetBaseSize();
+	float fSkeletonScaleToBe = kDefaultWidth * m_fScale / skeletonSize.x;
+	m_dxLibSpinePlayer.SetSkeletonScale(fSkeletonScaleToBe);
 }
