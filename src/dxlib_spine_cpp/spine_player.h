@@ -92,6 +92,7 @@ public:
 	void ResetBaseSize();
 
 	FPoint2 GetOffset() const noexcept;
+	void SetOffset(float fWidth, float fHeight);
 
 	float GetSkeletonScale() const noexcept;
 	void SetSkeletonScale(float fScale);
@@ -101,8 +102,6 @@ public:
 
 	float GetTimeScale() const noexcept;
 	void SetTimeScale(float fTimeScale);
-
-	void SetZoom(float fZoom);
 protected:
 	static constexpr float kfScalePortion = 0.025f;
 	static constexpr float kfMinScale = 0.15f;

@@ -655,5 +655,5 @@ void CFkgScenePlayer::SetTransformMatrixForStill(const DxLibImageHandle& imageHa
 void CFkgScenePlayer::ResetSpinePlayerScale()
 {
 	m_dxLibSpinePlayer.ResetScale();
-	m_dxLibSpinePlayer.SetZoom(1.05f);
+	m_dxLibSpinePlayer.SetSkeletonScale(m_dxLibSpinePlayer.GetCanvasScale() * 1.05f);
 }

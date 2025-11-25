@@ -610,6 +610,12 @@ FPoint2 CSpinePlayer::GetOffset() const noexcept
 	return m_fOffset;
 }
 
+void CSpinePlayer::SetOffset(float fWidth, float fHeight)
+{
+	m_fOffset.x = fWidth;
+	m_fOffset.y = fHeight;
+}
+
 float CSpinePlayer::GetSkeletonScale() const noexcept
 {
 	return m_fSkeletonScale;
@@ -637,11 +643,6 @@ float CSpinePlayer::GetTimeScale() const noexcept
 void CSpinePlayer::SetTimeScale(float fTimeScale)
 {
 	m_fTimeScale = fTimeScale;
-}
-
-void CSpinePlayer::SetZoom(float fZoom)
-{
-	m_fSkeletonScale = m_fCanvasScale * fZoom;
 }
 /*消去*/
 void CSpinePlayer::ClearDrawables()

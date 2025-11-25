@@ -11,7 +11,7 @@ public:
 
 	void Redraw();
 
-	DxLib::FLOAT4 GetCurrentBounding() const;
+	DxLib::FLOAT4 GetCurrentBoundingOfSlot(const char* slotName, size_t nameLength) const;
 private:
 	virtual void WorkOutDefaultScale();
 	virtual void WorkOutDefaultOffset();

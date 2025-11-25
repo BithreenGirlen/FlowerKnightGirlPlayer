@@ -38,26 +38,18 @@ void CDxLibSpinePlayer::Redraw()
 	}
 }
 
-DxLib::FLOAT4 CDxLibSpinePlayer::GetCurrentBounding() const
+DxLib::FLOAT4 CDxLibSpinePlayer::GetCurrentBoundingOfSlot(const char* slotName, size_t nameLength) const
 {
-	if (m_drawables.empty())return {};
-
-	float fMinX = FLT_MAX;
-	float fMinY = FLT_MAX;
-	float fMaxWidth = FLT_MIN;
-	float fMaxHeight = FLT_MIN;
-
+	bool found = false;
 	for (const auto& drawable : m_drawables)
 	{
-		const auto& rect = drawable->GetBoundingBox();
-
-		fMinX = (std::min)(fMinX, rect.x);
-		fMinY = (std::min)(fMinY, rect.y);
-		fMaxWidth = (std::max)(fMaxWidth, rect.z);
-		fMaxHeight = (std::max)(fMaxHeight, rect.w);
+		const auto& rect = drawable->GetBoundingBoxOfSlot(slotName, nameLength, &found);
+		if (found)
+		{
+			return rect;
+		}
 	}
-
-	return {fMinX, fMinY, fMaxWidth, fMaxHeight };
+	return {};
 }
 /*既定尺度算出*/
 void CDxLibSpinePlayer::WorkOutDefaultScale()
